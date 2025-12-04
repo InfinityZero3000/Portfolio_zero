@@ -3,7 +3,7 @@ import { HashRouter, Routes, Route, useLocation, Link, Navigate } from 'react-ro
 import { AnimatePresence, motion } from 'framer-motion';
 import { NAV_ITEMS, PROJECTS, SKILLS, /* ACHIEVEMENTS, */ EDUCATION_DATA, BIO } from './constants';
 import { Language, RoutePath } from './types';
-import { Menu, X, Globe as GlobeIcon, Download, Award, GraduationCap, FileText } from 'lucide-react';
+import { Menu, X, Globe as GlobeIcon, Download, Award, GraduationCap, FileText, Github, Linkedin, Mail, MapPin, Calendar } from 'lucide-react';
 import clsx from 'clsx';
 import { performanceMonitor } from './utils/performance-monitor';
 import { cacheManager } from './utils/cache-manager';
@@ -266,32 +266,103 @@ const EducationPage: React.FC = memo(() => {
 
 const AboutPage: React.FC = memo(() => {
   const { lang } = useLang();
+  const currentYear = new Date().getFullYear();
+  const age = currentYear - 2005;
+  const studentYear = currentYear - 2023 + 1; // Started in 2023
+  
   return (
-    <PageWrapper title={lang === Language.EN ? 'About' : 'Giới Thiệu'}>
-      <div className="flex flex-col lg:flex-row gap-12 items-start">
-        <div className="lg:w-1/2 text-lg text-gray-300 leading-relaxed space-y-6">
-          <p>{BIO[lang]}</p>
-          <p>
-            {lang === Language.EN 
-             ? "I specialize in React ecosystem, pushing the boundaries of what's possible in the browser. My work often bridges the gap between design and engineering."
-             : "Tôi chuyên về hệ sinh thái React, nỗ lực mở rộng giới hạn của những gì có thể thực hiện trên trình duyệt. Công việc của tôi thường là cầu nối giữa thiết kế và kỹ thuật."}
-          </p>
-          <div className="p-6 border-l-4 border-brand-600 bg-dark-800/50 italic text-gray-400">
-             "Code is poetry, written for machines but designed for humans."
+    <PageWrapper title={lang === Language.EN ? 'About Me' : 'Về Tôi'}>
+      <div className="max-w-6xl mx-auto space-y-12">
+        {/* Profile Header */}
+        <div className="flex flex-col lg:flex-row gap-8 items-start">
+          <div className="flex-1 space-y-6">
+            <div>
+              <h2 className="text-4xl font-bold text-white mb-2">Nguyễn Hữu Thắng</h2>
+              <p className="text-brand-500 text-xl font-mono">@InfinityZero</p>
+            </div>
+            
+            <div className="flex flex-wrap gap-4 text-gray-400">
+              <div className="flex items-center gap-2">
+                <Calendar size={18} className="text-brand-500" />
+                <span>{lang === Language.EN ? `Born in 2005 (${age} years old)` : `Sinh năm 2005 (${age} tuổi)`}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <GraduationCap size={18} className="text-brand-500" />
+                <span>{lang === Language.EN ? `Year ${studentYear} Student` : `Sinh viên năm ${studentYear}`}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <MapPin size={18} className="text-brand-500" />
+                <span>Ho Chi Minh City, Vietnam</span>
+              </div>
+            </div>
+
+            <div className="text-lg text-gray-300 leading-relaxed space-y-4">
+              <p>{BIO[lang]}</p>
+              <p>
+                {lang === Language.EN 
+                 ? "I specialize in React ecosystem, pushing the boundaries of what's possible in the browser. My work often bridges the gap between design and engineering, creating seamless user experiences."
+                 : "Tôi chuyên về hệ sinh thái React, nỗ lực mở rộng giới hạn của những gì có thể thực hiện trên trình duyệt. Công việc của tôi thường là cầu nối giữa thiết kế và kỹ thuật, tạo ra trải nghiệm người dùng mượt mà."}
+              </p>
+            </div>
+
+            {/* Social Links */}
+            <div className="flex flex-wrap gap-4 pt-4">
+              <a 
+                href="https://github.com/InfinityZero3000" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 px-4 py-2 bg-dark-800 hover:bg-dark-700 text-white rounded-lg transition-colors group"
+              >
+                <Github size={20} className="group-hover:text-brand-500 transition-colors" />
+                <span>GitHub</span>
+              </a>
+              <a 
+                href="https://www.linkedin.com/in/th%E1%BA%AFng-nguy%E1%BB%85n-h%E1%BB%AFu-82a5a0335/" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 px-4 py-2 bg-dark-800 hover:bg-dark-700 text-white rounded-lg transition-colors group"
+              >
+                <Linkedin size={20} className="group-hover:text-brand-500 transition-colors" />
+                <span>LinkedIn</span>
+              </a>
+              <a 
+                href="mailto:nguyenhuuthang.dev@gmail.com"
+                className="flex items-center gap-2 px-4 py-2 bg-dark-800 hover:bg-dark-700 text-white rounded-lg transition-colors group"
+              >
+                <Mail size={20} className="group-hover:text-brand-500 transition-colors" />
+                <span>Email</span>
+              </a>
+            </div>
           </div>
-        </div>
-        <div className="lg:w-1/2 w-full">
-           {/* Minimal stats visualization */}
-           <div className="grid grid-cols-2 gap-4">
-              <div className="bg-dark-800 p-6 rounded-xl text-center">
-                <div className="text-4xl font-bold text-white mb-2">5+</div>
-                <div className="text-gray-500 text-sm uppercase tracking-wider">{lang === Language.EN ? 'Years Exp' : 'Năm KN'}</div>
+
+          {/* Stats Card */}
+          <div className="lg:w-80 w-full space-y-4">
+            <div className="bg-gradient-to-br from-dark-800 to-dark-900 p-6 rounded-2xl border border-dark-700">
+              <h3 className="text-white font-bold mb-4 text-lg">
+                {lang === Language.EN ? 'Quick Stats' : 'Thống Kê'}
+              </h3>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400">{lang === Language.EN ? 'Projects' : 'Dự Án'}</span>
+                  <span className="text-2xl font-bold text-white">8+</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400">{lang === Language.EN ? 'Technologies' : 'Công Nghệ'}</span>
+                  <span className="text-2xl font-bold text-white">15+</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400">{lang === Language.EN ? 'Study Year' : 'Năm Học'}</span>
+                  <span className="text-2xl font-bold text-brand-500">{studentYear}</span>
+                </div>
               </div>
-              <div className="bg-dark-800 p-6 rounded-xl text-center">
-                <div className="text-4xl font-bold text-white mb-2">30+</div>
-                <div className="text-gray-500 text-sm uppercase tracking-wider">{lang === Language.EN ? 'Projects' : 'Dự Án'}</div>
-              </div>
-           </div>
+            </div>
+
+            <div className="p-6 border-l-4 border-brand-600 bg-dark-800/50 rounded-r-xl">
+              <p className="italic text-gray-400 text-sm">
+                "Code is poetry, written for machines but designed for humans."
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </PageWrapper>

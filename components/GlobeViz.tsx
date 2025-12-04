@@ -33,7 +33,6 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const globeRef = useRef<any>(null);
   const [countries, setCountries] = useState<any>({ features: [] });
-  const [isPaused, setIsPaused] = useState(false);
   const [sunPos, setSunPos] = useState(getSunPosition(new Date()));
   const [loadError, setLoadError] = useState<string | null>(null);
   const { width, height } = useResizeDetector({ 
@@ -368,14 +367,6 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady }) => {
     }
   }, [sunPos]);
 
-  const togglePause = () => {
-    if (globeRef.current) {
-      const controls = globeRef.current.controls();
-      controls.autoRotate = !controls.autoRotate;
-      setIsPaused(!isPaused);
-    }
-  };
-
   if (loadError) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-dark-900">
@@ -394,36 +385,17 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady }) => {
   }
 
   return (
-    <>
-      <div 
-        ref={containerRef} 
-        className="w-full h-full absolute inset-0 z-0"
-        style={{ 
-          overflow: 'hidden',
-          transform: 'translateZ(0)', // Force hardware acceleration
-          willChange: 'transform', // Optimize for smooth animations
-          backfaceVisibility: 'hidden', // Improve rendering performance
-          WebkitFontSmoothing: 'antialiased', // Smoother rendering
-        }}
-      />
-      <button
-        onClick={togglePause}
-        className="fixed bottom-6 right-6 z-[100] text-gray-400 hover:text-white transition-all duration-200 hover:scale-110 pointer-events-auto"
-        style={{ pointerEvents: 'auto' }}
-        title={isPaused ? "Resume rotation" : "Pause rotation"}
-      >
-        {isPaused ? (
-          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
-            <polygon points="5 3 19 12 5 21 5 3"></polygon>
-          </svg>
-        ) : (
-          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
-            <rect x="6" y="4" width="4" height="16"></rect>
-            <rect x="14" y="4" width="4" height="16"></rect>
-          </svg>
-        )}
-      </button>
-    </>
+    <div 
+      ref={containerRef} 
+      className="w-full h-full absolute inset-0 z-0"
+      style={{ 
+        overflow: 'hidden',
+        transform: 'translateZ(0)', // Force hardware acceleration
+        willChange: 'transform', // Optimize for smooth animations
+        backfaceVisibility: 'hidden', // Improve rendering performance
+        WebkitFontSmoothing: 'antialiased', // Smoother rendering
+      }}
+    />
   );
 };
 
