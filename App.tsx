@@ -1,4 +1,4 @@
-import React, { useState, createContext, useContext } from 'react';
+import React, { useState, createContext, useContext, memo } from 'react';
 import { HashRouter, Routes, Route, useLocation, Link, Navigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { NAV_ITEMS, PROJECTS, SKILLS, ACHIEVEMENTS, EDUCATION_DATA, BIO } from './constants';
@@ -17,7 +17,7 @@ const useLang = () => useContext(LangContext);
 
 // --- Layout Components ---
 
-const NavBar: React.FC = () => {
+const NavBar: React.FC = memo(() => {
   const { lang, toggleLang } = useLang();
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
@@ -105,7 +105,7 @@ const NavBar: React.FC = () => {
       </AnimatePresence>
     </>
   );
-};
+});
 
 const PageWrapper: React.FC<{ children: React.ReactNode; title: string }> = ({ children, title }) => (
   <motion.div
@@ -128,6 +128,7 @@ const PageWrapper: React.FC<{ children: React.ReactNode; title: string }> = ({ c
 
 const ZeroPage: React.FC = () => {
   const { lang } = useLang();
+  console.log('ZeroPage rendering');
   return (
     <div className="relative w-full h-screen overflow-hidden bg-dark-900">
       <GlobeViz />
@@ -141,7 +142,7 @@ const ZeroPage: React.FC = () => {
         className="absolute bottom-12 left-6 md:bottom-24 md:left-32 z-10 max-w-2xl pointer-events-none"
       >
         <h2 className="text-brand-500 font-mono text-sm md:text-base mb-2 tracking-widest uppercase">
-          {lang === Language.EN ? 'Senior Frontend Engineer' : 'Kỹ Sư Frontend Cao Cấp'}
+          {lang === Language.EN ? 'Software Developer' : 'Lập Trình Viên Phần Mềm'}
         </h2>
         <h1 className="text-5xl md:text-8xl font-bold text-white leading-none mb-6">
           HELLO <br /> WORLD<span className="text-brand-600">.</span>
@@ -154,7 +155,7 @@ const ZeroPage: React.FC = () => {
   );
 };
 
-const ProjectPage: React.FC = () => {
+const ProjectPage: React.FC = memo(() => {
   const { lang } = useLang();
   return (
     <PageWrapper title={lang === Language.EN ? 'Projects' : 'Dự Án'}>
@@ -180,9 +181,9 @@ const ProjectPage: React.FC = () => {
       </div>
     </PageWrapper>
   );
-};
+});
 
-const SkillPage: React.FC = () => {
+const SkillPage: React.FC = memo(() => {
   const { lang } = useLang();
   return (
     <PageWrapper title={lang === Language.EN ? 'Skills' : 'Kỹ Năng'}>
@@ -205,9 +206,9 @@ const SkillPage: React.FC = () => {
       </div>
     </PageWrapper>
   );
-};
+});
 
-const AchievementsPage: React.FC = () => {
+const AchievementsPage: React.FC = memo(() => {
   const { lang } = useLang();
   return (
     <PageWrapper title={lang === Language.EN ? 'Achievements' : 'Thành Tựu'}>
@@ -227,9 +228,9 @@ const AchievementsPage: React.FC = () => {
       </div>
     </PageWrapper>
   );
-};
+});
 
-const EducationPage: React.FC = () => {
+const EducationPage: React.FC = memo(() => {
   const { lang } = useLang();
   return (
     <PageWrapper title={lang === Language.EN ? 'Education' : 'Học Vấn'}>
@@ -252,9 +253,9 @@ const EducationPage: React.FC = () => {
       </div>
     </PageWrapper>
   );
-};
+});
 
-const AboutPage: React.FC = () => {
+const AboutPage: React.FC = memo(() => {
   const { lang } = useLang();
   return (
     <PageWrapper title={lang === Language.EN ? 'About' : 'Giới Thiệu'}>
@@ -286,9 +287,9 @@ const AboutPage: React.FC = () => {
       </div>
     </PageWrapper>
   );
-};
+});
 
-const ResumePage: React.FC = () => {
+const ResumePage: React.FC = memo(() => {
   const { lang } = useLang();
   return (
     <PageWrapper title={lang === Language.EN ? 'Resume' : 'Hồ Sơ'}>
@@ -306,7 +307,7 @@ const ResumePage: React.FC = () => {
       </div>
     </PageWrapper>
   );
-};
+});
 
 // --- Main App ---
 
@@ -330,6 +331,8 @@ const AnimatedRoutes: React.FC = () => {
 
 export default function App() {
   const [lang, setLang] = useState<Language>(Language.EN);
+  
+  console.log('App component rendering...');
   
   const toggleLang = () => {
     setLang(prev => prev === Language.EN ? Language.VI : Language.EN);

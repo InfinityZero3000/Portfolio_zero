@@ -99,6 +99,6 @@ export const EDUCATION_DATA = [
 ];
 
 export const BIO = {
-  [Language.EN]: "I am a Senior Frontend Engineer passionate about crafting immersive digital experiences. Based in Ho Chi Minh City, I blend technical precision with artistic motion to build the future of the web.",
-  [Language.VI]: "Tôi là Kỹ sư Frontend cao cấp với niềm đam mê tạo ra các trải nghiệm kỹ thuật số sống động. Làm việc tại TP.HCM, tôi kết hợp sự chính xác về kỹ thuật với nghệ thuật chuyển động để xây dựng tương lai của web."
+  [Language.EN]: "I am a Software Developer passionate about crafting immersive digital experiences. Based in Ho Chi Minh City, I blend technical precision with artistic motion to build the future of the web.",
+  [Language.VI]: "Tôi là Lập Trình Viên Phần Mềm với niềm đam mê tạo ra các trải nghiệm kỹ thuật số sống động. Làm việc tại TP.HCM, tôi kết hợp sự chính xác về kỹ thuật với nghệ thuật chuyển động để xây dựng tương lai của web."
 };
