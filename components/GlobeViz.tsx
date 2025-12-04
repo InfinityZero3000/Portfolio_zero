@@ -151,11 +151,8 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady }) => {
       }
     });
     
-    // Set initial view focused on Vietnam - smooth zoom in animation
-    myGlobe.pointOfView({ lat: 16, lng: 106, altitude: 2.5 }, 0); // Start further out
-    setTimeout(() => {
-      myGlobe.pointOfView({ lat: 16, lng: 106, altitude: 2 }, 2000); // Zoom in over 2 seconds
-    }, 100);
+    // Set initial view focused on Vietnam
+    myGlobe.pointOfView({ lat: 16, lng: 106, altitude: 2 }, 0);
     
     const controls = myGlobe.controls();
     controls.autoRotate = true;

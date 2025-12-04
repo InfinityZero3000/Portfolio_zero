@@ -25,7 +25,7 @@ const NavBar: React.FC = memo(() => {
   return (
     <>
       {/* Desktop Nav */}
-      <nav className="fixed top-0 left-0 h-full w-24 hidden md:flex flex-col items-center justify-between py-8 bg-dark-900/80 backdrop-blur-md border-r border-dark-700 z-[100]">
+      <nav className="fixed top-0 left-0 h-full w-24 hidden md:flex flex-col items-center justify-between py-8 bg-dark-900/80 backdrop-blur-md border-r border-dark-700 z-50">
         <div className="text-brand-600 font-bold text-2xl tracking-tighter">ZERO</div>
         
         <div className="flex flex-col gap-8">
@@ -60,7 +60,7 @@ const NavBar: React.FC = memo(() => {
       </nav>
 
       {/* Mobile Header */}
-      <nav className="fixed top-0 left-0 w-full h-16 md:hidden flex items-center justify-between px-6 bg-dark-900/90 backdrop-blur-md border-b border-dark-700 z-[100]">
+      <nav className="fixed top-0 left-0 w-full h-16 md:hidden flex items-center justify-between px-6 bg-dark-900/90 backdrop-blur-md border-b border-dark-700 z-50">
         <div className="text-brand-600 font-bold text-xl">ZERO</div>
         <button onClick={() => setIsOpen(true)} className="text-white">
           <Menu />
@@ -130,11 +130,9 @@ const HomePage: React.FC = () => {
   const { lang } = useLang();
   return (
     <div className="relative w-full h-screen overflow-hidden bg-dark-900">
-      <div className="relative z-0">
-        <GlobeViz />
-      </div>
-      <div className="absolute inset-0 bg-gradient-to-t from-dark-900 via-transparent to-transparent pointer-events-none z-[5]" />
-      <div className="absolute inset-0 bg-gradient-to-r from-dark-900 via-transparent to-transparent pointer-events-none md:w-1/2 z-[5]" />
+      <GlobeViz />
+      <div className="absolute inset-0 bg-gradient-to-t from-dark-900 via-transparent to-transparent pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-r from-dark-900 via-transparent to-transparent pointer-events-none md:w-1/2" />
       
       <motion.div 
         initial={{ opacity: 0, x: -50 }}
