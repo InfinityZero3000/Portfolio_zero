@@ -183,16 +183,14 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady }) => {
       }
       
       try {
-        myGlobe.backgroundImageUrl(textureURLs.background);
+        myGlobe.backgroundImageUrl(textureURLs.background); // Show background stars
       } catch (e) {
         console.warn('backgroundImageUrl failed:', e);
       }
       
-      // Set atmosphere
+      // Disable atmosphere (blue glow)
       try {
-        myGlobe.showAtmosphere(true);
-        myGlobe.atmosphereColor('#87ceeb');
-        myGlobe.atmosphereAltitude(0.12);
+        myGlobe.showAtmosphere(false);
       } catch (e) {
         console.warn('Atmosphere settings failed:', e);
       }
@@ -200,19 +198,12 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady }) => {
       // Add realistic lighting
       const scene = myGlobe.scene();
     
-    // Remove default lights
-    scene.children.forEach((child: any) => {
-      if (child.isLight && child.type === 'AmbientLight') {
-        scene.remove(child);
-      }
-    });
-    
-    // Add dim ambient light
-    const ambientLight = new THREE.AmbientLight(0x222244, 0.4);
+    // Add strong ambient light for bright, even illumination
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
     scene.add(ambientLight);
     
-    // Add directional light from sun position
-    const sunLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    // Add directional light from sun position for highlights
+    const sunLight = new THREE.DirectionalLight(0xffffff, 0.8);
     const currentSun = getSunPosition(new Date());
     const phi = (90 - currentSun.lat) * Math.PI / 180;
     const theta = (currentSun.lng + 180) * Math.PI / 180;

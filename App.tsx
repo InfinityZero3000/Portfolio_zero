@@ -351,8 +351,8 @@ const AboutPage: React.FC = memo(() => {
               </p>
               <p>
                 {lang === Language.EN 
-                 ? "When I'm not coding, you'll find me exploring new technologies, contributing to open-source projects, or experimenting with 3D visualizations and web animations. I believe that great software is not just about functionality—it's about creating experiences that delight and inspire users."
-                 : "Khi không lập trình, bạn sẽ thấy tôi khám phá các công nghệ mới, đóng góp cho các dự án mã nguồn mở, hoặc thử nghiệm với trực quan hóa 3D và animation web. Tôi tin rằng phần mềm tuyệt vời không chỉ về chức năng—mà còn về việc tạo ra trải nghiệm làm hài lòng và truyền cảm hứng cho người dùng."}
+                 ? "Outside of coding, I'm constantly learning and staying up-to-date with the latest tech trends. Whether it's diving into new frameworks, optimizing performance, or exploring creative ways to enhance user experience, I'm driven by a genuine love for problem-solving and innovation. For me, writing code is more than a job—it's a craft that I'm constantly refining."
+                 : "Ngoài việc lập trình, tôi không ngừng học hỏi và cập nhật các xu hướng công nghệ mới nhất. Dù là tìm hiểu các framework mới, tối ưu hiệu suất, hay khám phá các cách sáng tạo để nâng cao trải nghiệm người dùng, tôi được thúc đẩy bởi tình yêu thực sự với việc giải quyết vấn đề và đổi mới. Với tôi, viết code không chỉ là công việc, đó là một nghệ thuật mà tôi không ngừng trau dồi."}
               </p>
             </div>
 
