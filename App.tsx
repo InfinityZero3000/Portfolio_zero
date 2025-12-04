@@ -1,11 +1,15 @@
-import React, { useState, createContext, useContext, memo, lazy, Suspense } from 'react';
+import React, { useState, createContext, useContext, memo, lazy, Suspense, useEffect } from 'react';
 import { HashRouter, Routes, Route, useLocation, Link, Navigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { NAV_ITEMS, PROJECTS, SKILLS, /* ACHIEVEMENTS, */ EDUCATION_DATA, BIO } from './constants';
 import { Language, RoutePath } from './types';
-import GlobeViz from './components/GlobeViz';
 import { Menu, X, Globe as GlobeIcon, Download, Award, GraduationCap, FileText } from 'lucide-react';
 import clsx from 'clsx';
+import { performanceMonitor } from './utils/performance-monitor';
+import { cacheManager } from './utils/cache-manager';
+
+// Lazy load GlobeViz component for faster initial load
+const GlobeViz = lazy(() => import('./components/GlobeViz'));
 
 // --- Context ---
 interface LangContextType {
@@ -130,14 +134,20 @@ const HomePage: React.FC = () => {
   const { lang } = useLang();
   return (
     <div className="relative w-full h-screen overflow-hidden bg-dark-900">
-      <GlobeViz />
+      <Suspense fallback={
+        <div className="w-full h-full flex items-center justify-center">
+          <div className="w-12 h-12 border-3 border-brand-600 border-t-transparent rounded-full animate-spin" />
+        </div>
+      }>
+        <GlobeViz />
+      </Suspense>
       <div className="absolute inset-0 bg-gradient-to-t from-dark-900 via-transparent to-transparent pointer-events-none" />
       <div className="absolute inset-0 bg-gradient-to-r from-dark-900 via-transparent to-transparent pointer-events-none md:w-1/2" />
       
       <motion.div 
         initial={{ opacity: 0, x: -50 }}
         animate={{ opacity: 1, x: 0 }}
-        transition={{ delay: 0.5, duration: 0.6 }}
+        transition={{ delay: 0.3, duration: 0.6 }}
         className="absolute bottom-12 left-6 md:bottom-24 md:left-32 z-10 max-w-2xl pointer-events-none"
       >
         <h2 className="text-brand-500 font-mono text-sm md:text-base mb-2 tracking-widest uppercase">
@@ -314,7 +324,7 @@ const AnimatedRoutes: React.FC = () => {
   const location = useLocation();
   return (
     <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname}>
+      <Routes location={location}>
         <Route path={RoutePath.HOME} element={<HomePage />} />
         <Route path={RoutePath.PROJECT} element={<ProjectPage />} />
         <Route path={RoutePath.SKILL} element={<SkillPage />} />
@@ -334,6 +344,29 @@ export default function App() {
   const toggleLang = () => {
     setLang(prev => prev === Language.EN ? Language.VI : Language.EN);
   };
+
+  // Initialize performance monitoring
+  useEffect(() => {
+    // Log performance metrics on mount
+    console.log('[Performance] App initialized');
+    
+    // Periodic cache cleanup
+    const cleanupInterval = setInterval(() => {
+      cacheManager.evictOldEntries();
+    }, 5 * 60 * 1000); // Every 5 minutes
+    
+    // Show performance summary in development
+    setTimeout(() => {
+      const summary = performanceMonitor.getSummary();
+      console.log('[Performance Summary]', summary);
+      console.log('[Recommendations]', performanceMonitor.getRecommendations());
+    }, 3000);
+    
+    return () => {
+      clearInterval(cleanupInterval);
+      performanceMonitor.stop();
+    };
+  }, []);
 
   return (
     <LangContext.Provider value={{ lang, toggleLang }}>

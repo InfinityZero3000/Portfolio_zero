@@ -3,28 +3,123 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="Portfolio của Nguyễn Hữu Thắng (InfinityZero) - Software Developer chuyên về React, TypeScript, và Web 3D Visualization" />
+    <meta name="keywords" content="portfolio, developer, react, typescript, web developer, software engineer, 3d visualization" />
+    <meta name="author" content="Nguyễn Hữu Thắng" />
+    
+    <!-- Open Graph Meta Tags -->
+    <meta property="og:title" content="Portfolio - InfinityZero" />
+    <meta property="og:description" content="Software Developer Portfolio - React, TypeScript, 3D Web Visualization" />
+    <meta property="og:type" content="website" />
+    
+    <!-- Performance & Security -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="theme-color" content="#dc2626" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    
+    <!-- Content Security Policy - Allow unsafe-eval for Globe.gl/Three.js -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' https: data:; connect-src 'self' https://unpkg.com https://raw.githubusercontent.com https://fonts.googleapis.com https://fonts.gstatic.com;" />
+    
     <title>Zero | Portfolio</title>
     
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     
-    <!-- Preconnect to external resources -->
+    <!-- Preconnect to external resources for faster loading -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="preconnect" href="https://unpkg.com">
-    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="preconnect" href="https://unpkg.com" crossorigin>
+    <link rel="dns-prefetch" href="https://raw.githubusercontent.com">
     
-    <!-- Preload critical Globe textures -->
-    <link rel="preload" href="https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg" as="image">
-    <link rel="preload" href="https://unpkg.com/three-globe/example/img/earth-topology.png" as="image">
+    <!-- Preload critical Globe textures for faster 3D rendering -->
+    <link rel="preload" href="https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg" as="image" fetchpriority="high">
+    <link rel="preload" href="https://unpkg.com/three-globe/example/img/earth-topology.png" as="image" fetchpriority="low">
     
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Optimized font loading with font-display swap -->
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet"></noscript>
     
-    <!-- Load Globe.gl from CDN -->
+    <!-- Load Globe.gl from CDN - must load before React app -->
     <script src="https://unpkg.com/globe.gl@2.31.0/dist/globe.gl.min.js"></script>
+    <!-- Debug: Check if Globe loaded -->
+    <script>
+      window.addEventListener('load', function() {
+        if (typeof Globe === 'undefined') {
+          console.error('Globe failed to load from CDN');
+        } else {
+          console.log('Globe loaded successfully:', typeof Globe);
+        }
+      });
+    </script>
+    
+    <!-- Inline critical CSS to prevent FOUC -->
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow-x: hidden;
+        background-color: #111827;
+        color: #ffffff;
+      }
+      #root {
+        width: 100%;
+        min-height: 100vh;
+      }
+      .loading-screen {
+        position: fixed;
+        inset: 0;
+        background: #111827;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        transition: opacity 0.3s ease-out;
+      }
+      .loading-screen.hide {
+        opacity: 0;
+        pointer-events: none;
+      }
+      .loader {
+        width: 48px;
+        height: 48px;
+        border: 3px solid #dc2626;
+        border-bottom-color: transparent;
+        border-radius: 50%;
+        animation: rotation 1s linear infinite;
+      }
+      @keyframes rotation {
+        0% { transform: rotate(0deg) }
+        100% { transform: rotate(360deg) }
+      }
+      * {
+        box-sizing: border-box;
+      }
+    </style>
   </head>
   <body>
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="loading-screen">
+      <div class="loader"></div>
+    </div>
+    
     <div id="root"></div>
+    
     <script type="module" src="/index.tsx"></script>
+    
+    <!-- Basic error tracking -->
+    <script>
+      window.addEventListener('error', function(e) {
+        console.error('[Error]', e.message, e.filename, e.lineno);
+      });
+      
+      window.addEventListener('unhandledrejection', function(e) {
+        console.error('[Unhandled Promise]', e.reason);
+      });
+    </script>
   </body>
 </html>

@@ -22,30 +22,46 @@ export default defineConfig(({ mode }) => {
       build: {
         // Build optimizations
         target: 'es2015',
-        minify: 'esbuild', // Use esbuild instead of terser
+        minify: 'esbuild',
         // Code splitting configuration
         rollupOptions: {
           output: {
             manualChunks: {
               'vendor-react': ['react', 'react-dom', 'react-router-dom'],
               'vendor-animation': ['framer-motion'],
-              'vendor-3d': ['globe.gl', 'three'],
+              'vendor-3d': ['three'], // Remove globe.gl as it's loaded from CDN
               'vendor-ui': ['lucide-react', 'clsx']
             },
-            // Optimize chunk names
             chunkFileNames: 'assets/js/[name]-[hash].js',
             entryFileNames: 'assets/js/[name]-[hash].js',
             assetFileNames: 'assets/[ext]/[name]-[hash].[ext]'
           }
         },
-        // Optimize chunk size
         chunkSizeWarningLimit: 1000,
-        // Enable sourcemap for production debugging (optional)
         sourcemap: false,
-        // CSS code splitting
         cssCodeSplit: true,
-        // Optimize asset handling
-        assetsInlineLimit: 4096 // 4kb
+        assetsInlineLimit: 8192, // Increase inline limit for smaller assets
+        // Additional optimizations
+        reportCompressedSize: false, // Faster builds
+        cssMinify: true,
+        modulePreload: {
+          polyfill: true, // Better browser support
+          resolveDependencies: (filename, deps) => {
+            // Preload critical chunks first
+            return deps.filter(dep => 
+              dep.includes('vendor-react') || 
+              dep.includes('index')
+            );
+          }
+        }
+      },
+      // Experimental features for better performance
+      experimental: {
+        renderBuiltUrl(filename: string) {
+          // Use CDN for production assets (optional)
+          // return `https://cdn.example.com/${filename}`;
+          return `/${filename}`;
+        }
       },
       // Performance optimizations
       optimizeDeps: {
