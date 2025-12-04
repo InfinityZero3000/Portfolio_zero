@@ -13,7 +13,7 @@ export const NAV_ITEMS: (NavItem & { icon: any })[] = [
   { key: 'zero', path: RoutePath.ZERO, label: { [Language.EN]: 'Zero', [Language.VI]: 'Zero' }, icon: Home },
   { key: 'project', path: RoutePath.PROJECT, label: { [Language.EN]: 'Projects', [Language.VI]: 'Dự Án' }, icon: Briefcase },
   { key: 'skill', path: RoutePath.SKILL, label: { [Language.EN]: 'Skills', [Language.VI]: 'Kỹ Năng' }, icon: Cpu },
-  { key: 'achievements', path: RoutePath.ACHIEVEMENTS, label: { [Language.EN]: 'Achievements', [Language.VI]: 'Thành Tựu' }, icon: Award },
+  // { key: 'achievements', path: RoutePath.ACHIEVEMENTS, label: { [Language.EN]: 'Achievements', [Language.VI]: 'Thành Tựu' }, icon: Award },
   { key: 'education', path: RoutePath.EDUCATION, label: { [Language.EN]: 'Education', [Language.VI]: 'Học Vấn' }, icon: GraduationCap },
   { key: 'about', path: RoutePath.ABOUT, label: { [Language.EN]: 'About', [Language.VI]: 'Giới Thiệu' }, icon: User },
   { key: 'resume', path: RoutePath.RESUME, label: { [Language.EN]: 'Resume', [Language.VI]: 'Hồ Sơ' }, icon: FileText },
@@ -22,83 +22,137 @@ export const NAV_ITEMS: (NavItem & { icon: any })[] = [
 export const PROJECTS: Project[] = [
   {
     id: '1',
-    title: 'Neon Commerce',
-    tech: ['React', 'Node.js', 'MongoDB', 'Redux'],
+    title: 'Algorithm Complexity Visualizer',
+    tech: ['Next.js', 'React', 'TypeScript', 'TailwindCSS'],
     description: {
-      [Language.EN]: 'A high-performance e-commerce platform with real-time inventory tracking.',
-      [Language.VI]: 'Nền tảng thương mại điện tử hiệu suất cao với theo dõi kho hàng thời gian thực.'
+      [Language.EN]: 'Interactive web platform for visualizing and understanding algorithm complexity with sorting, searching, and extreme value algorithms.',
+      [Language.VI]: 'Nền tảng web tương tác để trực quan hóa và hiểu độ phức tạp thuật toán với các thuật toán sắp xếp, tìm kiếm và tìm giá trị cực trị.'
     },
     image: 'https://picsum.photos/600/400?random=1'
   },
   {
     id: '2',
-    title: 'AI Chatbot Integration',
-    tech: ['Python', 'Gemini API', 'FastAPI', 'React'],
+    title: 'Mom-Baby Shop E-commerce',
+    tech: ['React', 'TypeScript', 'Vite', 'TailwindCSS'],
     description: {
-      [Language.EN]: 'Intelligent customer support agent leveraging LLMs for natural conversation.',
-      [Language.VI]: 'Đại lý hỗ trợ khách hàng thông minh sử dụng LLM cho các cuộc hội thoại tự nhiên.'
+      [Language.EN]: 'Full-featured e-commerce platform for mother and baby products with shopping cart, wishlist, and multi-role authentication.',
+      [Language.VI]: 'Nền tảng thương mại điện tử đầy đủ chức năng cho sản phẩm mẹ và bé với giỏ hàng, danh sách yêu thích và xác thực đa vai trò.'
     },
     image: 'https://picsum.photos/600/400?random=2'
   },
   {
     id: '3',
-    title: 'Crypto Dashboard',
-    tech: ['TypeScript', 'D3.js', 'WebSocket'],
+    title: 'Spam Email Classification System',
+    tech: ['Python', 'React', 'Scikit-learn', 'Gmail API', 'NLP'],
     description: {
-      [Language.EN]: 'Real-time cryptocurrency visualization tool with predictive analytics.',
-      [Language.VI]: 'Công cụ trực quan hóa tiền điện tử thời gian thực với phân tích dự đoán.'
+      [Language.EN]: 'ML-powered spam detection system with Gmail integration, Vietnamese text processing, and interactive web interface.',
+      [Language.VI]: 'Hệ thống phát hiện spam sử dụng ML với tích hợp Gmail, xử lý văn bản tiếng Việt và giao diện web tương tác.'
     },
     image: 'https://picsum.photos/600/400?random=3'
+  },
+  {
+    id: '4',
+    title: 'Student Management System',
+    tech: ['Flask', 'Python', 'JavaScript', 'Chart.js', 'Pandas'],
+    description: {
+      [Language.EN]: 'Comprehensive student management dashboard with statistics, advanced search, and multi-format data import capabilities.',
+      [Language.VI]: 'Bảng điều khiển quản lý sinh viên toàn diện với thống kê, tìm kiếm nâng cao và khả năng nhập dữ liệu đa định dạng.'
+    },
+    image: 'https://picsum.photos/600/400?random=4'
+  },
+  {
+    id: '5',
+    title: 'Customer Emotion Recognition',
+    tech: ['Python', 'TensorFlow', 'OpenCV', 'Deep Learning', 'Facial Recognition'],
+    description: {
+      [Language.EN]: 'Real-time emotion recognition system using deep learning for customer sentiment analysis and feedback.',
+      [Language.VI]: 'Hệ thống nhận diện cảm xúc thời gian thực sử dụng học sâu để phân tích cảm xúc khách hàng và phản hồi.'
+    },
+    image: 'https://picsum.photos/600/400?random=5'
+  },
+  {
+    id: '6',
+    title: 'Pac-Man with Dijkstra Algorithm',
+    tech: ['Python', 'Pygame', 'AI Pathfinding', 'Dijkstra', 'A* Algorithm'],
+    description: {
+      [Language.EN]: 'Intelligent Pac-Man game implementing Dijkstra/A* pathfinding with ghost avoidance and auto-play mode.',
+      [Language.VI]: 'Game Pac-Man thông minh triển khai thuật toán tìm đường Dijkstra/A* với tránh ma và chế độ tự động.'
+    },
+    image: 'https://picsum.photos/600/400?random=6'
+  },
+  {
+    id: '7',
+    title: 'Document Image Processing',
+    tech: ['Python', 'OpenCV', 'Tesseract OCR', 'Jupyter'],
+    description: {
+      [Language.EN]: 'Advanced image processing pipeline for document text cleaning using morphological operations to improve OCR accuracy.',
+      [Language.VI]: 'Quy trình xử lý ảnh nâng cao để làm sạch văn bản tài liệu sử dụng các phép hình thái để cải thiện độ chính xác OCR.'
+    },
+    image: 'https://picsum.photos/600/400?random=7'
+  },
+  {
+    id: '8',
+    title: 'John Henry Website',
+    tech: ['HTML', 'Bootstrap', 'C#', '.NET Core 9.0', 'PostgreSQL'],
+    description: {
+      [Language.EN]: 'Professional portfolio website showcasing projects, skills, and experience with modern responsive design.',
+      [Language.VI]: 'Website portfolio chuyên nghiệp giới thiệu các dự án, kỹ năng và kinh nghiệm với thiết kế đáp ứng hiện đại.'
+    },
+    image: 'https://github.com/InfinityZero3000/John-Henry-Website/blob/main/image.png'
   }
 ];
 
 export const SKILLS: SkillCategory[] = [
   {
     category: { [Language.EN]: 'Frontend', [Language.VI]: 'Frontend' },
-    items: ['React.js', 'TypeScript', 'Next.js', 'Tailwind CSS', 'Framer Motion', 'Three.js']
+    items: ['React.js', 'TypeScript', 'Next.js', 'Tailwind CSS', 'Bootstrap']
   },
   {
     category: { [Language.EN]: 'Backend', [Language.VI]: 'Backend' },
-    items: ['Node.js', 'NestJS', 'Python', 'Go', 'PostgreSQL', 'Redis']
+    items: ['Node.js', 'NestJS', 'Python','C/C++','.NET Core 9.0', 'PostgreSQL','SQL Server', 'Redis']
   },
   {
     category: { [Language.EN]: 'DevOps', [Language.VI]: 'Vận Hành' },
-    items: ['Docker', 'Kubernetes', 'AWS', 'CI/CD Pipelines', 'Terraform']
+    items: ['Docker', 'AWS', 'CI/CD Pipelines', 'GitHub Actions']
+  },
+  {
+    category: { [Language.EN]: 'AI & Data', [Language.VI]: 'AI & Dữ Liệu' },
+    items: ['Machine Learning', 'Gemini API', 'Data Analysis', 'NLP']
   }
 ];
 
-export const ACHIEVEMENTS: Achievement[] = [
-  {
-    id: 'a1',
-    year: '2023',
-    title: { [Language.EN]: 'Best Innovation Award', [Language.VI]: 'Giải Thưởng Đổi Mới Sáng Tạo' },
-    description: { 
-      [Language.EN]: 'Recognized for creating an accessibility tool for visually impaired developers.',
-      [Language.VI]: 'Được công nhận vì đã tạo ra công cụ hỗ trợ tiếp cận cho các lập trình viên khiếm thị.'
-    }
-  },
-  {
-    id: 'a2',
-    year: '2022',
-    title: { [Language.EN]: 'Hackathon Winner', [Language.VI]: 'Vô Địch Hackathon' },
-    description: {
-      [Language.EN]: '1st place globally in the Decentralized Web Hackathon.',
-      [Language.VI]: 'Hạng nhất toàn cầu trong cuộc thi Decentralized Web Hackathon.'
-    }
-  }
-];
+// export const ACHIEVEMENTS: Achievement[] = [
+//   {
+//     id: 'a1',
+//     year: '2023',
+//     title: { [Language.EN]: 'Best Innovation Award', [Language.VI]: 'Giải Thưởng Đổi Mới Sáng Tạo' },
+//     description: { 
+//       [Language.EN]: 'Recognized for creating an accessibility tool for visually impaired developers.',
+//       [Language.VI]: 'Được công nhận vì đã tạo ra công cụ hỗ trợ tiếp cận cho các lập trình viên khiếm thị.'
+//     }
+//   },
+//   {
+//     id: 'a2',
+//     year: '2022',
+//     title: { [Language.EN]: 'Hackathon Winner', [Language.VI]: 'Vô Địch Hackathon' },
+//     description: {
+//       [Language.EN]: '1st place globally in the Decentralized Web Hackathon.',
+//       [Language.VI]: 'Hạng nhất toàn cầu trong cuộc thi Decentralized Web Hackathon.'
+//     }
+//   }
+// ];
 
 export const EDUCATION_DATA = [
   {
     id: 'e1',
-    year: '2018 - 2022',
-    degree: { [Language.EN]: 'Bachelor of Software Engineering', [Language.VI]: 'Cử Nhân Kỹ Thuật Phần Mềm' },
-    school: { [Language.EN]: 'University of Information Technology', [Language.VI]: 'Trường Đại học Công nghệ Thông tin' },
+    year: '2023 - Present',
+    degree: { [Language.EN]: 'Student of Software Technology', [Language.VI]: 'Sinh viên Công nghệ Phần mềm' },
+    school: { [Language.EN]: 'Ho Chi Minh City University of Industry And Trade', [Language.VI]: 'Trường Đại học Công Thương TP.HCM' },
     location: 'Ho Chi Minh City, Vietnam'
   }
 ];
 
 export const BIO = {
-  [Language.EN]: "I am a Software Developer passionate about crafting immersive digital experiences. Based in Ho Chi Minh City, I blend technical precision with artistic motion to build the future of the web.",
-  [Language.VI]: "Tôi là Lập Trình Viên Phần Mềm với niềm đam mê tạo ra các trải nghiệm kỹ thuật số sống động. Làm việc tại TP.HCM, tôi kết hợp sự chính xác về kỹ thuật với nghệ thuật chuyển động để xây dựng tương lai của web."
+  [Language.EN]: "I'm Zero, a Software Developer passionate about crafting immersive digital experiences. Work and study in Ho Chi Minh City, I blend technical precision with artistic motion to build the future of the web.",
+  [Language.VI]: "Tôi là Zero, một Lập Trình Viên Phần Mềm với niềm đam mê tạo ra các trải nghiệm kỹ thuật số sống động. Học và làm việc tại TP.HCM, tôi kết hợp sự chính xác về kỹ thuật với nghệ thuật chuyển động để xây dựng tương lai của web."
 };

@@ -1,7 +1,7 @@
-import React, { useState, createContext, useContext, memo } from 'react';
+import React, { useState, createContext, useContext, memo, lazy, Suspense } from 'react';
 import { HashRouter, Routes, Route, useLocation, Link, Navigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { NAV_ITEMS, PROJECTS, SKILLS, ACHIEVEMENTS, EDUCATION_DATA, BIO } from './constants';
+import { NAV_ITEMS, PROJECTS, SKILLS, /* ACHIEVEMENTS, */ EDUCATION_DATA, BIO } from './constants';
 import { Language, RoutePath } from './types';
 import GlobeViz from './components/GlobeViz';
 import { Menu, X, Globe as GlobeIcon, Download, Award, GraduationCap, FileText } from 'lucide-react';
@@ -97,7 +97,7 @@ const NavBar: React.FC = memo(() => {
             </div>
             <div className="mt-auto">
                <button onClick={toggleLang} className="text-xl text-gray-400 border border-gray-700 px-4 py-2 rounded-full w-full flex items-center justify-center gap-2">
-                 <GlobeIcon size={20} /> {lang === Language.EN ? 'Tiếng Việt' : 'English'}
+                 <GlobeIcon size={20} /> {lang === Language.EN ? 'VI' : 'EN'}
                </button>
             </div>
           </motion.div>
@@ -128,7 +128,6 @@ const PageWrapper: React.FC<{ children: React.ReactNode; title: string }> = ({ c
 
 const ZeroPage: React.FC = () => {
   const { lang } = useLang();
-  console.log('ZeroPage rendering');
   return (
     <div className="relative w-full h-screen overflow-hidden bg-dark-900">
       <GlobeViz />
@@ -138,7 +137,7 @@ const ZeroPage: React.FC = () => {
       <motion.div 
         initial={{ opacity: 0, x: -50 }}
         animate={{ opacity: 1, x: 0 }}
-        transition={{ delay: 1, duration: 1 }}
+        transition={{ delay: 0.5, duration: 0.6 }}
         className="absolute bottom-12 left-6 md:bottom-24 md:left-32 z-10 max-w-2xl pointer-events-none"
       >
         <h2 className="text-brand-500 font-mono text-sm md:text-base mb-2 tracking-widest uppercase">
@@ -208,27 +207,27 @@ const SkillPage: React.FC = memo(() => {
   );
 });
 
-const AchievementsPage: React.FC = memo(() => {
-  const { lang } = useLang();
-  return (
-    <PageWrapper title={lang === Language.EN ? 'Achievements' : 'Thành Tựu'}>
-      <div className="space-y-8">
-        {ACHIEVEMENTS.map((item) => (
-          <div key={item.id} className="flex flex-col md:flex-row gap-6 md:gap-12 md:items-center border-b border-dark-700 pb-8 last:border-0">
-            <div className="text-brand-600 font-mono text-xl md:w-32">{item.year}</div>
-            <div className="flex-1">
-              <h3 className="text-2xl font-bold text-white mb-2">{item.title[lang]}</h3>
-              <p className="text-gray-400">{item.description[lang]}</p>
-            </div>
-            <div className="text-brand-500">
-              <Award size={32} />
-            </div>
-          </div>
-        ))}
-      </div>
-    </PageWrapper>
-  );
-});
+// const AchievementsPage: React.FC = memo(() => {
+//   const { lang } = useLang();
+//   return (
+//     <PageWrapper title={lang === Language.EN ? 'Achievements' : 'Thành Tựu'}>
+//       <div className="space-y-8">
+//         {ACHIEVEMENTS.map((item) => (
+//           <div key={item.id} className="flex flex-col md:flex-row gap-6 md:gap-12 md:items-center border-b border-dark-700 pb-8 last:border-0">
+//             <div className="text-brand-600 font-mono text-xl md:w-32">{item.year}</div>
+//             <div className="flex-1">
+//               <h3 className="text-2xl font-bold text-white mb-2">{item.title[lang]}</h3>
+//               <p className="text-gray-400">{item.description[lang]}</p>
+//             </div>
+//             <div className="text-brand-500">
+//               <Award size={32} />
+//             </div>
+//           </div>
+//         ))}
+//       </div>
+//     </PageWrapper>
+//   );
+// });
 
 const EducationPage: React.FC = memo(() => {
   const { lang } = useLang();
@@ -319,7 +318,7 @@ const AnimatedRoutes: React.FC = () => {
         <Route path={RoutePath.ZERO} element={<ZeroPage />} />
         <Route path={RoutePath.PROJECT} element={<ProjectPage />} />
         <Route path={RoutePath.SKILL} element={<SkillPage />} />
-        <Route path={RoutePath.ACHIEVEMENTS} element={<AchievementsPage />} />
+        {/* <Route path={RoutePath.ACHIEVEMENTS} element={<AchievementsPage />} /> */}
         <Route path={RoutePath.EDUCATION} element={<EducationPage />} />
         <Route path={RoutePath.ABOUT} element={<AboutPage />} />
         <Route path={RoutePath.RESUME} element={<ResumePage />} />
@@ -331,8 +330,6 @@ const AnimatedRoutes: React.FC = () => {
 
 export default function App() {
   const [lang, setLang] = useState<Language>(Language.EN);
-  
-  console.log('App component rendering...');
   
   const toggleLang = () => {
     setLang(prev => prev === Language.EN ? Language.VI : Language.EN);
