@@ -1,5 +1,5 @@
 import React, { useState, createContext, useContext, memo, lazy, Suspense, useEffect } from 'react';
-import { HashRouter, Routes, Route, useLocation, Link, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation, Link, Navigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { NAV_ITEMS, PROJECTS, SKILLS, /* ACHIEVEMENTS, */ EDUCATION_DATA, BIO } from './constants';
 import { Language, RoutePath } from './types';
@@ -499,12 +499,12 @@ export default function App() {
 
   return (
     <LangContext.Provider value={{ lang, toggleLang }}>
-      <HashRouter>
+      <BrowserRouter>
         <div className="bg-dark-900 text-white min-h-screen font-sans selection:bg-brand-600 selection:text-white">
           <NavBar />
           <AnimatedRoutes />
         </div>
-      </HashRouter>
+      </BrowserRouter>
     </LangContext.Provider>
   );
 }

@@ -187,16 +187,45 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady }) => {
       } catch (e) {
         console.warn('backgroundImageUrl failed:', e);
       }
-      
-      // Disable atmosphere (blue glow)
-      try {
-        myGlobe.showAtmosphere(false);
-      } catch (e) {
-        console.warn('Atmosphere settings failed:', e);
-      }
 
-      // Add realistic lighting
       const scene = myGlobe.scene();
+      
+      const createCustomAtmosphere = () => {
+        // Vertex shader for atmosphere glow
+        const atmosphereVertexShader = `
+          varying vec3 vNormal;
+          void main() {
+            vNormal = normalize(normalMatrix * normal);
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          }
+        `;
+        
+        // Fragment shader for outer glow effect
+        const atmosphereFragmentShader = `
+          varying vec3 vNormal;
+          void main() {
+            float intensity = pow(0.6 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.0);
+            gl_FragColor = vec4(0.3, 0.6, 1.0, 1.0) * intensity;
+          }
+        `;
+        
+        // Create atmosphere sphere slightly larger than globe
+        const atmosphereGeometry = new THREE.SphereGeometry(102, 128, 128); // 2 units larger than globe (100)
+        const atmosphereMaterial = new THREE.ShaderMaterial({
+          vertexShader: atmosphereVertexShader,
+          fragmentShader: atmosphereFragmentShader,
+          blending: THREE.AdditiveBlending,
+          side: THREE.BackSide, // Render only the back side for outer glow
+          transparent: true,
+          depthWrite: false, // Don't write to depth buffer to avoid z-fighting
+        });
+        
+        const atmosphereMesh = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
+        atmosphereMesh.scale.set(1.15, 1.15, 1.15); // Scale up for outer glow effect
+        scene.add(atmosphereMesh);
+      };
+      
+      createCustomAtmosphere();
     
     // Add strong ambient light for bright, even illumination
     const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
