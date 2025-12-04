@@ -269,6 +269,35 @@ const AboutPage: React.FC = memo(() => {
   const currentYear = new Date().getFullYear();
   const age = currentYear - 2005;
   const studentYear = currentYear - 2023 + 1; // Started in 2023
+  const [repoCount, setRepoCount] = useState<number>(8);
+  
+  // Fetch GitHub repos count
+  useEffect(() => {
+    const fetchRepos = async () => {
+      try {
+        console.log('Fetching GitHub repos for InfinityZero3000...');
+        const response = await fetch('https://api.github.com/users/InfinityZero3000/repos?per_page=100&type=all');
+        
+        if (!response.ok) {
+          throw new Error(`GitHub API error: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (Array.isArray(data)) {
+          console.log('GitHub repos fetched successfully:', data.length);
+          console.log('Repos:', data.map((r: any) => r.name));
+          setRepoCount(data.length);
+        } else {
+          console.error('Invalid GitHub API response:', data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch GitHub repos:', err);
+      }
+    };
+    
+    fetchRepos();
+  }, []);
   
   return (
     <PageWrapper title={lang === Language.EN ? 'About Me' : 'Về Tôi'}>
@@ -278,7 +307,15 @@ const AboutPage: React.FC = memo(() => {
           <div className="flex-1 space-y-6">
             <div>
               <h2 className="text-4xl font-bold text-white mb-2">Nguyễn Hữu Thắng</h2>
-              <p className="text-brand-500 text-xl font-mono">@InfinityZero</p>
+              <a 
+                href="https://github.com/InfinityZero3000" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-brand-500 text-xl font-mono hover:text-brand-400 transition-colors inline-flex items-center gap-1 group"
+              >
+                @InfinityZero3000
+                <Github size={18} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+              </a>
             </div>
             
             <div className="flex flex-wrap gap-4 text-gray-400">
@@ -297,11 +334,25 @@ const AboutPage: React.FC = memo(() => {
             </div>
 
             <div className="text-lg text-gray-300 leading-relaxed space-y-4">
-              <p>{BIO[lang]}</p>
               <p>
                 {lang === Language.EN 
-                 ? "I specialize in React ecosystem, pushing the boundaries of what's possible in the browser. My work often bridges the gap between design and engineering, creating seamless user experiences."
-                 : "Tôi chuyên về hệ sinh thái React, nỗ lực mở rộng giới hạn của những gì có thể thực hiện trên trình duyệt. Công việc của tôi thường là cầu nối giữa thiết kế và kỹ thuật, tạo ra trải nghiệm người dùng mượt mà."}
+                 ? "Hello! I'm Thắng, a passionate Software Developer currently pursuing my degree in Software Technology at Ho Chi Minh City University of Industry and Trade. My journey into the world of programming started with a curiosity about how things work behind the scenes, and it has evolved into a deep passion for creating meaningful digital experiences."
+                 : "Xin chào! Tôi là Thắng, một Lập Trình Viên Phần Mềm đầy nhiệt huyết đang theo học ngành Công nghệ Phần mềm tại Trường Đại học Công Thương TP.HCM. Hành trình lập trình của tôi bắt đầu từ sự tò mò về cách mọi thứ hoạt động, và đã phát triển thành niềm đam mê sâu sắc trong việc tạo ra những trải nghiệm kỹ thuật số có ý nghĩa."}
+              </p>
+              <p>
+                {lang === Language.EN 
+                 ? "I specialize in building modern web applications using React and TypeScript, with a strong focus on creating intuitive user interfaces and seamless experiences. From e-commerce platforms to machine learning applications, I love tackling complex problems and turning ideas into reality through clean, efficient code."
+                 : "Tôi chuyên xây dựng các ứng dụng web hiện đại sử dụng React và TypeScript, với trọng tâm vào việc tạo ra giao diện người dùng trực quan và trải nghiệm mượt mà. Từ nền tảng thương mại điện tử đến ứng dụng học máy, tôi yêu thích việc giải quyết các vấn đề phức tạp và biến ý tưởng thành hiện thực thông qua code sạch và hiệu quả."}
+              </p>
+              <p>
+                {lang === Language.EN 
+                 ? "Beyond frontend development, I'm deeply interested in AI and machine learning technologies. I've worked on projects ranging from spam email classification systems to customer emotion recognition, always eager to explore the intersection of software engineering and artificial intelligence. My goal is to bridge the gap between innovative technology and practical, user-centered solutions."
+                 : "Ngoài phát triển frontend, tôi rất quan tâm đến công nghệ AI và học máy. Tôi đã làm việc trên các dự án từ hệ thống phân loại email spam đến nhận diện cảm xúc khách hàng, luôn háo hức khám phá sự giao thoa giữa kỹ thuật phần mềm và trí tuệ nhân tạo. Mục tiêu của tôi là kết nối công nghệ đổi mới với các giải pháp thực tế, lấy người dùng làm trung tâm."}
+              </p>
+              <p>
+                {lang === Language.EN 
+                 ? "When I'm not coding, you'll find me exploring new technologies, contributing to open-source projects, or experimenting with 3D visualizations and web animations. I believe that great software is not just about functionality—it's about creating experiences that delight and inspire users."
+                 : "Khi không lập trình, bạn sẽ thấy tôi khám phá các công nghệ mới, đóng góp cho các dự án mã nguồn mở, hoặc thử nghiệm với trực quan hóa 3D và animation web. Tôi tin rằng phần mềm tuyệt vời không chỉ về chức năng—mà còn về việc tạo ra trải nghiệm làm hài lòng và truyền cảm hứng cho người dùng."}
               </p>
             </div>
 
@@ -326,7 +377,7 @@ const AboutPage: React.FC = memo(() => {
                 <span>LinkedIn</span>
               </a>
               <a 
-                href="mailto:nguyenhuuthang.dev@gmail.com"
+                href="mailto:nhthang.dev@gmail.com"
                 className="flex items-center gap-2 px-4 py-2 bg-dark-800 hover:bg-dark-700 text-white rounded-lg transition-colors group"
               >
                 <Mail size={20} className="group-hover:text-brand-500 transition-colors" />
@@ -343,8 +394,15 @@ const AboutPage: React.FC = memo(() => {
               </h3>
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-400">{lang === Language.EN ? 'Projects' : 'Dự Án'}</span>
-                  <span className="text-2xl font-bold text-white">8+</span>
+                  <span className="text-gray-400">{lang === Language.EN ? 'GitHub Repos' : 'Repo GitHub'}</span>
+                  <a 
+                    href="https://github.com/InfinityZero3000?tab=repositories" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-2xl font-bold text-white hover:text-brand-500 transition-colors"
+                  >
+                    {repoCount}
+                  </a>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400">{lang === Language.EN ? 'Technologies' : 'Công Nghệ'}</span>
