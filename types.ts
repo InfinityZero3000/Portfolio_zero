@@ -4,7 +4,7 @@ export enum Language {
 }
 
 export enum RoutePath {
-  ZERO = '/',
+  HOME = '/',
   PROJECT = '/project',
   SKILL = '/skill',
   ACHIEVEMENTS = '/achievements',

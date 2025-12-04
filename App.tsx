@@ -126,7 +126,7 @@ const PageWrapper: React.FC<{ children: React.ReactNode; title: string }> = ({ c
 
 // --- Pages ---
 
-const ZeroPage: React.FC = () => {
+const HomePage: React.FC = () => {
   const { lang } = useLang();
   return (
     <div className="relative w-full h-screen overflow-hidden bg-dark-900">
@@ -315,14 +315,14 @@ const AnimatedRoutes: React.FC = () => {
   return (
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
-        <Route path={RoutePath.ZERO} element={<ZeroPage />} />
+        <Route path={RoutePath.HOME} element={<HomePage />} />
         <Route path={RoutePath.PROJECT} element={<ProjectPage />} />
         <Route path={RoutePath.SKILL} element={<SkillPage />} />
         {/* <Route path={RoutePath.ACHIEVEMENTS} element={<AchievementsPage />} /> */}
         <Route path={RoutePath.EDUCATION} element={<EducationPage />} />
         <Route path={RoutePath.ABOUT} element={<AboutPage />} />
         <Route path={RoutePath.RESUME} element={<ResumePage />} />
-        <Route path="*" element={<Navigate to={RoutePath.ZERO} />} />
+        <Route path="*" element={<Navigate to={RoutePath.HOME} />} />
       </Routes>
     </AnimatePresence>
   );
