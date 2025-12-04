@@ -127,11 +127,11 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady }) => {
     scene.add(sunLight);
     sunLightRef.current = sunLight;
 
-    // Optimize renderer settings
+    // Optimize renderer settings with higher quality
     const renderer = myGlobe.renderer();
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.0)); // Lower pixel ratio for faster rendering
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Higher pixel ratio for sharper rendering
     renderer.powerPreference = 'high-performance';
-    renderer.antialias = false; // Disable antialiasing for better performance
+    renderer.antialias = true; // Enable antialiasing for smoother edges
     
     // Set initial view focused on Vietnam - smooth zoom in animation
     myGlobe.pointOfView({ lat: 16, lng: 106, altitude: 2.5 }, 0); // Start further out

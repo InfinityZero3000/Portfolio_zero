@@ -98,7 +98,7 @@ export const PROJECTS: Project[] = [
       [Language.EN]: 'Professional portfolio website showcasing projects, skills, and experience with modern responsive design.',
       [Language.VI]: 'Website portfolio chuyên nghiệp giới thiệu các dự án, kỹ năng và kinh nghiệm với thiết kế đáp ứng hiện đại.'
     },
-    image: 'https://github.com/InfinityZero3000/John-Henry-Website/blob/main/image.png'
+    image: 'https://picsum.photos/600/400?random=8'
   }
 ];
 
