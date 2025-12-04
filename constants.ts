@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 
 export const NAV_ITEMS: (NavItem & { icon: any })[] = [
-  { key: 'home', path: RoutePath.Home, label: { [Language.EN]: 'Home', [Language.VI]: 'Trang Chủ' }, icon: Home },
+  { key: 'home', path: RoutePath.HOME, label: { [Language.EN]: 'Home', [Language.VI]: 'Trang Chủ' }, icon: Home },
   { key: 'project', path: RoutePath.PROJECT, label: { [Language.EN]: 'Projects', [Language.VI]: 'Dự Án' }, icon: Briefcase },
   { key: 'skill', path: RoutePath.SKILL, label: { [Language.EN]: 'Skills', [Language.VI]: 'Kỹ Năng' }, icon: Cpu },
   // { key: 'achievements', path: RoutePath.ACHIEVEMENTS, label: { [Language.EN]: 'Achievements', [Language.VI]: 'Thành Tựu' }, icon: Award },
