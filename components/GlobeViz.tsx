@@ -86,13 +86,13 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady }) => {
       
       if (!Globe) return;
       
-      // Create new globe instance with performance optimizations
+      // Create new globe instance with high-quality textures
       const myGlobe = Globe()(containerRef.current)
       .width(width)
       .height(height)
-      .globeImageUrl('//unpkg.com/three-globe/example/img/earth-blue-marble.jpg')
-      .bumpImageUrl('//unpkg.com/three-globe/example/img/earth-topology.png')
-      .backgroundImageUrl('//unpkg.com/three-globe/example/img/night-sky.png')
+      .globeImageUrl('https://unpkg.com/three-globe@2.31.0/example/img/earth-blue-marble.jpg')
+      .bumpImageUrl('https://unpkg.com/three-globe@2.31.0/example/img/earth-topology.png')
+      .backgroundImageUrl('https://unpkg.com/three-globe@2.31.0/example/img/night-sky.png')
       .showAtmosphere(true)
       .atmosphereColor('#87ceeb')
       .atmosphereAltitude(0.12);
@@ -127,11 +127,29 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady }) => {
     scene.add(sunLight);
     sunLightRef.current = sunLight;
 
-    // Optimize renderer settings with higher quality
+    // Optimize renderer settings with maximum quality
     const renderer = myGlobe.renderer();
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Higher pixel ratio for sharper rendering
+    renderer.setPixelRatio(window.devicePixelRatio); // Use full device pixel ratio for maximum sharpness
     renderer.powerPreference = 'high-performance';
     renderer.antialias = true; // Enable antialiasing for smoother edges
+    
+    // Enable anisotropic filtering for sharper textures when viewing at angles
+    const gl = renderer.getContext();
+    const maxAnisotropy = gl.getParameter(gl.MAX_TEXTURE_MAX_ANISOTROPY_EXT) || 1;
+    
+    // Apply anisotropic filtering to globe textures
+    scene.traverse((object: any) => {
+      if (object.isMesh && object.material) {
+        if (object.material.map) {
+          object.material.map.anisotropy = maxAnisotropy;
+          object.material.map.minFilter = THREE.LinearMipmapLinearFilter;
+          object.material.map.magFilter = THREE.LinearFilter;
+        }
+        if (object.material.bumpMap) {
+          object.material.bumpMap.anisotropy = maxAnisotropy;
+        }
+      }
+    });
     
     // Set initial view focused on Vietnam - smooth zoom in animation
     myGlobe.pointOfView({ lat: 16, lng: 106, altitude: 2.5 }, 0); // Start further out
@@ -147,13 +165,14 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady }) => {
     controls.minDistance = 101;
     controls.maxDistance = 500;
     
-    // Enable full 360° rotation - remove all polar angle limits
-    controls.minPolarAngle = -Infinity;
-    controls.maxPolarAngle = Infinity;
-    
-    // Enable full azimuth rotation
+    // Remove ALL rotation limits for complete 360° freedom
+    controls.minPolarAngle = 0;
+    controls.maxPolarAngle = Math.PI;
     controls.minAzimuthAngle = -Infinity;
     controls.maxAzimuthAngle = Infinity;
+    
+    // Disable screen space panning to allow full rotation through poles
+    controls.screenSpacePanning = false;
 
         globeRef.current = myGlobe;
 
