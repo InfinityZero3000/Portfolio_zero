@@ -8,16 +8,46 @@
   box-sizing: border-box;
 }
 
+/* GPU acceleration for smoother animations */
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   background-color: #0a0a0a;
   color: #e5e5e5;
   overflow-x: hidden;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 #root {
   width: 100%;
   min-height: 100vh;
+  contain: layout style; /* CSS containment for better performance */
+}
+
+/* Hardware acceleration for common animated elements */
+.animate-spin,
+[class*="transition"],
+[class*="motion"] {
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* Custom Scrollbar */
@@ -36,4 +66,14 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #b91c1c;
+}
+
+/* Optimize images */
+img {
+  content-visibility: auto;
+}
+
+/* Reduce repaints on hover effects */
+a, button {
+  will-change: opacity, background-color;
 }
