@@ -21,6 +21,13 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  position: relative;
+}
+
+/* Ensure fixed elements stay fixed during scroll */
+nav[class*="fixed"] {
+  position: fixed !important;
+  will-change: auto;
 }
 
 #root {

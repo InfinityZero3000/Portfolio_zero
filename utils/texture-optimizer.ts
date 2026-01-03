@@ -166,18 +166,20 @@ export function clearTextureCache(): void {
  * Get optimal renderer settings based on device
  */
 export function getOptimalRendererSettings(capability: DeviceCapability) {
-  // Limit pixel ratio to prevent excessive GPU load
-  const maxPixelRatio = capability.isMobile ? 1.5 : (capability.isHighEnd ? 2 : 1.5);
+  // Aggressively limit pixel ratio to prevent excessive GPU load
+  // Lower pixel ratio = much better performance with minimal visual difference
+  const maxPixelRatio = capability.isMobile ? 1 : (capability.isHighEnd ? 1.5 : 1);
   const pixelRatio = Math.min(window.devicePixelRatio || 1, maxPixelRatio);
   
   return {
-    antialias: !capability.isMobile, // Disable antialiasing on mobile for performance
+    antialias: capability.isHighEnd && !capability.isMobile, // Only enable on high-end desktop
     powerPreference: 'high-performance',
     pixelRatio,
     alpha: true, // Required for transparent background
     stencil: false,
     depth: true,
     logarithmicDepthBuffer: false,
+    preserveDrawingBuffer: false, // Disable for better performance
   } as const;
 }
 

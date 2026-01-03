@@ -9,6 +9,7 @@ import {
 } from '../utils/texture-optimizer';
 import { cacheManager } from '../utils/cache-manager';
 import { resourceRateLimiter } from '../utils/rate-limiter';
+import { debounce } from '../utils/debounce';
 
 interface GlobeVizProps {
   onGlobeReady?: () => void;
@@ -35,10 +36,12 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady }) => {
   const [countries, setCountries] = useState<any>({ features: [] });
   const [sunPos, setSunPos] = useState(getSunPosition(new Date()));
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [isGlobeReady, setIsGlobeReady] = useState(false);
   const { width, height } = useResizeDetector({ 
     targetRef: containerRef,
-    refreshMode: 'throttle',
-    refreshRate: 200
+    refreshMode: 'debounce',
+    refreshRate: 300, // Increased debounce to 300ms for better performance
+    skipOnMount: false
   });
   const sunLightRef = useRef<THREE.DirectionalLight | null>(null);
   
@@ -238,8 +241,9 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady }) => {
 
       const scene = myGlobe.scene();
     
-    // Add atmospheric glow layer
-    const atmosphereGeometry = new THREE.SphereGeometry(101, 64, 64);
+    // Add atmospheric glow layer with optimized geometry
+    const atmosphereSegments = deviceCapability.isMobile ? 24 : (deviceCapability.isHighEnd ? 48 : 32);
+    const atmosphereGeometry = new THREE.SphereGeometry(101, atmosphereSegments, atmosphereSegments);
     const atmosphereMaterial = new THREE.ShaderMaterial({
       vertexShader: `
         varying vec3 vNormal;
@@ -257,21 +261,23 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady }) => {
       `,
       blending: THREE.AdditiveBlending,
       side: THREE.BackSide,
-      transparent: true
+      transparent: true,
+      depthWrite: false // Optimize transparency rendering
     });
     const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
     atmosphere.scale.set(1.1, 1.1, 1.1);
+    atmosphere.renderOrder = -1; // Render atmosphere first
     scene.add(atmosphere);
     
     // Simple single ambient light - minimal lighting to test without edge artifacts
     const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
     scene.add(ambientLight);
 
-    // Optimize renderer for maximum sharpness
+    // Optimize renderer for maximum sharpness and performance
     renderer.setPixelRatio(rendererSettings.pixelRatio);
     renderer.powerPreference = rendererSettings.powerPreference as any;
     
-    // Enable high quality rendering
+    // Performance optimizations
     renderer.shadowMap.enabled = false; // Disable shadows for better performance
     renderer.physicallyCorrectLights = false; // Faster lighting calculations
     
@@ -279,6 +285,10 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady }) => {
     (renderer as any).outputEncoding = 3001; // sRGB color space for accurate colors
     (renderer as any).toneMapping = 4; // ACES Filmic tone mapping for better visuals
     (renderer as any).toneMappingExposure = 1.0;
+    
+    // Additional performance optimizations
+    renderer.sortObjects = false; // Skip object sorting for performance
+    renderer.info.autoReset = true; // Auto-reset render info
     
     // Apply maximum texture filtering for sharpness
     // Get maximum anisotropic filtering available (usually 16)
@@ -293,12 +303,12 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady }) => {
         // Use moderate sphere resolution for good quality + performance balance
         if (object.geometry && object.geometry.type === 'SphereGeometry') {
           const oldGeometry = object.geometry;
-          // 64 segments provides good quality without heavy GPU load
-          const segments = deviceCapability.isHighEnd ? 96 : 64;
+          // Reduce segments for better performance - 48 is sweet spot for smooth look + performance
+          const segments = deviceCapability.isMobile ? 32 : (deviceCapability.isHighEnd ? 64 : 48);
           object.geometry = new THREE.SphereGeometry(
             oldGeometry.parameters?.radius || 100,
-            segments, // width segments - balanced for performance
-            segments  // height segments - balanced for performance
+            segments, // width segments - optimized for performance
+            segments  // height segments - optimized for performance
           );
           oldGeometry.dispose();
         }
@@ -336,20 +346,43 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady }) => {
       }
     });
     
-    // Set initial view focused on Vietnam
-    myGlobe.pointOfView({ lat: 16, lng: 106, altitude: 2 }, 0);
+    // Set initial view focused on Vietnam with zoom out effect
+    // Start zoomed in (altitude 0.5) and animate to normal view (altitude 2)
+    myGlobe.pointOfView({ lat: 16, lng: 106, altitude: 0.5 }, 0);
+    
+    // Smooth zoom out animation after a brief delay
+    setTimeout(() => {
+      if (myGlobe && mounted) {
+        myGlobe.pointOfView({ lat: 16, lng: 106, altitude: 2 }, 1200); // 1.2s animation
+        setIsGlobeReady(true);
+      }
+    }, 100);
     
     // Optimize controls for smooth rotation
     const controls = myGlobe.controls();
-    controls.autoRotate = !deviceCapability.isMobile; // Disable auto-rotate on mobile to save battery
-    controls.autoRotateSpeed = 0.15; // Slower, smoother rotation for all devices
+    controls.autoRotate = false; // Disable auto-rotate by default for better performance
+    controls.autoRotateSpeed = 0.3; // Faster rotation when enabled
     controls.enableDamping = true;
-    controls.dampingFactor = 0.05; // Lower value = smoother, more fluid motion
-    controls.rotateSpeed = 0.5; // Slower manual rotation for better control
+    controls.dampingFactor = 0.1; // Higher value = less calculations, better performance
+    controls.rotateSpeed = 0.6; // Smooth manual rotation
     controls.minDistance = 101;
     controls.maxDistance = 500;
     controls.enablePan = true;
     controls.panSpeed = 0.5;
+    
+    // Reduce update frequency for controls
+    controls.update = (() => {
+      let lastUpdate = 0;
+      const updateThrottle = deviceCapability.isMobile ? 33 : 16; // 30fps mobile, 60fps desktop
+      const originalUpdate = controls.update.bind(controls);
+      return function() {
+        const now = Date.now();
+        if (now - lastUpdate > updateThrottle) {
+          originalUpdate();
+          lastUpdate = now;
+        }
+      };
+    })();
     
     // Apply scene optimizations
     optimizeScene(scene, deviceCapability);
@@ -365,32 +398,65 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady }) => {
 
         globeRef.current = myGlobe;
         
-        // Throttled animation loop for better performance
+        // Optimized animation loop with adaptive frame rate
         let lastTime = 0;
+        let isUserInteracting = false;
+        let inactivityTimer: NodeJS.Timeout;
+        
+        // Detect user interaction for adaptive rendering
+        const onInteractionStart = () => {
+          isUserInteracting = true;
+          clearTimeout(inactivityTimer);
+        };
+        
+        const onInteractionEnd = () => {
+          clearTimeout(inactivityTimer);
+          inactivityTimer = setTimeout(() => {
+            isUserInteracting = false;
+          }, 500);
+        };
+        
+        // Add interaction listeners
+        canvas.addEventListener('mousedown', onInteractionStart);
+        canvas.addEventListener('touchstart', onInteractionStart);
+        canvas.addEventListener('mouseup', onInteractionEnd);
+        canvas.addEventListener('touchend', onInteractionEnd);
+        canvas.addEventListener('wheel', onInteractionStart);
+        
+        // Adaptive FPS based on interaction
         const targetFPS = deviceCapability.isMobile ? 30 : 60;
-        const frameInterval = 1000 / targetFPS;
+        const idleFPS = deviceCapability.isMobile ? 15 : 30;
         
         const animate = (currentTime: number) => {
           if (!mounted) return;
-          requestAnimationFrame(animate);
           
-          // Throttle frame rate on mobile devices
+          // Use appropriate frame rate based on interaction
+          const fps = isUserInteracting ? targetFPS : idleFPS;
+          const frameInterval = 1000 / fps;
+          
           const deltaTime = currentTime - lastTime;
-          if (deltaTime < frameInterval) return;
+          if (deltaTime < frameInterval) {
+            requestAnimationFrame(animate);
+            return;
+          }
+          
           lastTime = currentTime - (deltaTime % frameInterval);
           
-          // Only update controls if auto-rotating
-          if (controls.autoRotate) {
-            controls.update();
-          }
+          // Update controls (throttled internally)
+          controls.update();
+          
+          requestAnimationFrame(animate);
         };
         requestAnimationFrame(animate);
         
+        // Call onGlobeReady after zoom animation completes
+        setTimeout(() => {
+          if (onGlobeReady && mounted) {
+            onGlobeReady();
+          }
+        }, 1400); // Slightly after zoom animation (1200ms + 200ms buffer)
+        
         // CSS transparency is sufficient - no need for delayed setClearColor
-
-        if (onGlobeReady) {
-          onGlobeReady();
-        }
     };
     
     loadGlobe().catch((err: any) => {
@@ -447,6 +513,8 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady }) => {
         WebkitFontSmoothing: 'antialiased', // Smoother rendering
         background: 'transparent', // Ensure container is transparent
         backgroundColor: 'transparent', // No background color
+        opacity: isGlobeReady ? 1 : 0.7, // Fade in effect
+        transition: 'opacity 0.8s ease-in-out', // Smooth fade transition
       }}
     />
   );

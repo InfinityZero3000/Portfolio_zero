@@ -12,11 +12,11 @@ import {
 export const NAV_ITEMS: (NavItem & { icon: any })[] = [
   { key: 'home', path: RoutePath.HOME, label: { [Language.EN]: 'Home', [Language.VI]: 'Trang Chủ' }, icon: Home },
   { key: 'project', path: RoutePath.PROJECT, label: { [Language.EN]: 'Projects', [Language.VI]: 'Dự Án' }, icon: Briefcase },
+  { key: 'about', path: RoutePath.ABOUT, label: { [Language.EN]: 'About', [Language.VI]: 'Giới Thiệu' }, icon: User },
+  { key: 'resume', path: RoutePath.RESUME, label: { [Language.EN]: 'Resume', [Language.VI]: 'Hồ Sơ' }, icon: FileText },
   { key: 'skill', path: RoutePath.SKILL, label: { [Language.EN]: 'Skills', [Language.VI]: 'Kỹ Năng' }, icon: Cpu },
   // { key: 'achievements', path: RoutePath.ACHIEVEMENTS, label: { [Language.EN]: 'Achievements', [Language.VI]: 'Thành Tựu' }, icon: Award },
   { key: 'education', path: RoutePath.EDUCATION, label: { [Language.EN]: 'Education', [Language.VI]: 'Học Vấn' }, icon: GraduationCap },
-  { key: 'about', path: RoutePath.ABOUT, label: { [Language.EN]: 'About', [Language.VI]: 'Giới Thiệu' }, icon: User },
-  { key: 'resume', path: RoutePath.RESUME, label: { [Language.EN]: 'Resume', [Language.VI]: 'Hồ Sơ' }, icon: FileText },
 ];
 
 export const PROJECTS: Project[] = [
@@ -106,36 +106,36 @@ export const SKILLS: SkillCategory[] = [
   {
     category: { [Language.EN]: 'Frontend', [Language.VI]: 'Frontend' },
     items: [
-      { name: 'React.js', level: SkillLevel.ADVANCED },
-      { name: 'Next.js', level: SkillLevel.ADVANCED },
-      { name: 'Tailwind CSS', level: SkillLevel.EXPERT },
-      { name: 'Bootstrap', level: SkillLevel.ADVANCED }
+      { name: 'React.js', level: SkillLevel.BEGINNER },
+      { name: 'Next.js', level: SkillLevel.BEGINNER },
+      { name: 'Tailwind CSS', level: SkillLevel.BEGINNER },
+      { name: 'Bootstrap', level: SkillLevel.BASIC }
     ]
   },
   {
     category: { [Language.EN]: 'Backend', [Language.VI]: 'Backend' },
     items: [
-      { name: 'Python', level: SkillLevel.ADVANCED },
-      { name: 'C/C++', level: SkillLevel.INTERMEDIATE },
+      { name: 'Python', level: SkillLevel.INTERMEDIATE },
+      { name: 'C/C++', level: SkillLevel.BASIC },
       { name: '.NET Core 9.0', level: SkillLevel.INTERMEDIATE },
-      { name: 'Redis', level: SkillLevel.INTERMEDIATE }
+      { name: 'Redis', level: SkillLevel.BASIC }
     ]
   },
   {
     category: { [Language.EN]: 'DevOps', [Language.VI]: 'Vận Hành' },
     items: [
       { name: 'Docker', level: SkillLevel.INTERMEDIATE },
-      { name: 'CI/CD Pipelines', level: SkillLevel.INTERMEDIATE },
-      { name: 'GitHub Actions', level: SkillLevel.ADVANCED }
+      { name: 'CI/CD Pipelines', level: SkillLevel.BASIC },
+      { name: 'GitHub Actions', level: SkillLevel.BASIC }
     ]
   },
   {
-    category: { [Language.EN]: 'AI & Data', [Language.VI]: 'AI & Dữ Liệu' },
+    category: { [Language.EN]: 'AI & Data', [Language.VI]: 'Trí tuệ nhân tạo & Dữ Liệu' },
     items: [
-      { name: 'PostgreSQL', level: SkillLevel.ADVANCED },
-      { name: 'SQL Server', level: SkillLevel.ADVANCED },
-      { name: 'Machine Learning', level: SkillLevel.INTERMEDIATE },
-      { name: 'NLP', level: SkillLevel.INTERMEDIATE }
+      { name: 'PostgreSQL', level: SkillLevel.INTERMEDIATE },
+      { name: 'SQL Server', level: SkillLevel.INTERMEDIATE },
+      { name: 'Machine Learning', level: SkillLevel.BASIC },
+      { name: 'NLP', level: SkillLevel.BEGINNER }
     ]
   }
 ];

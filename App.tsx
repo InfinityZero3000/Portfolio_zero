@@ -10,6 +10,7 @@ import { cacheManager } from './utils/cache-manager';
 
 // Lazy load GlobeViz component for faster initial load
 const GlobeViz = lazy(() => import('./components/GlobeViz'));
+const LoadingSpinner = lazy(() => import('./components/LoadingSpinner'));
 
 // Simple loading fallback for pages
 const PageLoading = () => (
@@ -36,7 +37,10 @@ const NavBar: React.FC = memo(() => {
   return (
     <>
       {/* Desktop Nav */}
-      <nav className="fixed top-0 left-0 h-screen w-24 hidden md:flex flex-col items-center justify-between py-8 bg-dark-900/80 backdrop-blur-md border-r border-dark-700 z-50">
+      <nav 
+        className="fixed top-0 left-0 h-screen w-24 hidden md:flex flex-col items-center justify-between py-8 bg-dark-900/80 backdrop-blur-md border-r border-dark-700 z-50"
+        style={{ position: 'fixed' }}
+      >
         <div className="text-brand-600 font-bold text-2xl tracking-tighter">ZERO</div>
         
         <div className="flex flex-col gap-8">
@@ -71,7 +75,10 @@ const NavBar: React.FC = memo(() => {
       </nav>
 
       {/* Mobile Header */}
-      <nav className="fixed top-0 left-0 w-full h-16 md:hidden flex items-center justify-between px-6 bg-dark-900/90 backdrop-blur-md border-b border-dark-700 z-50">
+      <nav 
+        className="fixed top-0 left-0 w-full h-16 md:hidden flex items-center justify-between px-6 bg-dark-900/90 backdrop-blur-md border-b border-dark-700 z-50"
+        style={{ position: 'fixed' }}
+      >
         <div className="text-brand-600 font-bold text-xl">ZERO</div>
         <button onClick={() => setIsOpen(true)} className="text-white">
           <Menu />
@@ -86,6 +93,7 @@ const NavBar: React.FC = memo(() => {
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             className="fixed inset-0 z-[60] bg-dark-900 flex flex-col p-8 md:hidden"
+            style={{ position: 'fixed' }}
           >
             <div className="flex justify-between items-center mb-12">
               <span className="text-brand-600 font-bold text-2xl">MENU</span>
@@ -141,11 +149,7 @@ const HomePage: React.FC = () => {
   const { lang } = useLang();
   return (
     <div className="relative w-full h-screen overflow-hidden bg-dark-900">
-      <Suspense fallback={
-        <div className="w-full h-full flex items-center justify-center">
-          <div className="w-12 h-12 border-3 border-brand-600 border-t-transparent rounded-full animate-spin" />
-        </div>
-      }>
+      <Suspense fallback={null}>
         <GlobeViz />
       </Suspense>
       <div className="absolute inset-0 bg-gradient-to-t from-dark-900 via-transparent to-transparent pointer-events-none" />
@@ -154,7 +158,7 @@ const HomePage: React.FC = () => {
       <motion.div 
         initial={{ opacity: 0, x: -50 }}
         animate={{ opacity: 1, x: 0 }}
-        transition={{ delay: 0.3, duration: 0.6 }}
+        transition={{ delay: 0.5, duration: 0.8, ease: "easeOut" }}
         className="absolute bottom-12 left-6 md:bottom-24 md:left-32 z-10 max-w-2xl pointer-events-none"
       >
         <h2 className="text-brand-500 font-mono text-sm md:text-base mb-2 tracking-widest uppercase">
@@ -201,6 +205,45 @@ const ProjectPage: React.FC = memo(() => {
 
 const SkillPage: React.FC = memo(() => {
   const { lang } = useLang();
+  
+  // Helper function to get skill level display text and color
+  const getSkillLevelInfo = (level: string) => {
+    const levelMap: Record<string, { text: { en: string; vi: string }; color: string; bg: string }> = {
+      'Beginner': { 
+        text: { en: 'Beginner', vi: 'Mới bắt đầu' }, 
+        color: 'text-gray-400', 
+        bg: 'bg-gray-900/50' 
+      },
+      'Basic': { 
+        text: { en: 'Basic', vi: 'Cơ bản' }, 
+        color: 'text-blue-400', 
+        bg: 'bg-blue-900/30' 
+      },
+      'Intermediate': { 
+        text: { en: 'Intermediate', vi: 'Trung cấp' }, 
+        color: 'text-yellow-400', 
+        bg: 'bg-yellow-900/30' 
+      },
+      'Advanced': { 
+        text: { en: 'Advanced', vi: 'Nâng cao' }, 
+        color: 'text-green-400', 
+        bg: 'bg-green-900/30' 
+      },
+      'Expert': { 
+        text: { en: 'Expert', vi: 'Chuyên gia' }, 
+        color: 'text-brand-400', 
+        bg: 'bg-brand-900/30' 
+      }
+    };
+    
+    const info = levelMap[level] || levelMap['Basic'];
+    return {
+      text: lang === Language.EN ? info.text.en : info.text.vi,
+      color: info.color,
+      bg: info.bg
+    };
+  };
+  
   return (
     <PageWrapper title={lang === Language.EN ? 'Skills' : 'Kỹ Năng'}>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
@@ -210,15 +253,20 @@ const SkillPage: React.FC = memo(() => {
               {section.category[lang]}
             </h3>
             <div className="flex flex-col gap-3">
-              {section.items.map((skill) => (
-                <div key={skill.name} className="flex items-center justify-between gap-3 group">
-                  <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 bg-gray-700 rounded-full group-hover:bg-brand-500 transition-colors" />
-                    <span className="text-lg text-gray-300 group-hover:text-white transition-colors">{skill.name}</span>
+              {section.items.map((skill) => {
+                const levelInfo = getSkillLevelInfo(skill.level);
+                return (
+                  <div key={skill.name} className="flex items-center justify-between gap-3 group bg-dark-800/50 hover:bg-dark-800 p-3 rounded-lg transition-all">
+                    <div className="flex items-center gap-3 flex-1">
+                      <div className="w-2 h-2 bg-gray-700 rounded-full group-hover:bg-brand-500 transition-colors" />
+                      <span className="text-base text-gray-300 group-hover:text-white transition-colors font-medium">{skill.name}</span>
+                    </div>
+                    <span className={`text-xs font-semibold px-3 py-1 rounded-full ${levelInfo.bg} ${levelInfo.color} border border-current/20 whitespace-nowrap`}>
+                      {levelInfo.text}
+                    </span>
                   </div>
-                  <span className="text-sm text-gray-500 group-hover:text-brand-400 transition-colors">{skill.level}</span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         ))}
@@ -277,8 +325,17 @@ const EducationPage: React.FC = memo(() => {
 const AboutPage: React.FC = memo(() => {
   const { lang } = useLang();
   const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth() + 1; // getMonth() returns 0-11, so add 1
   const age = currentYear - 2005;
-  const studentYear = currentYear - 2023 + 1; 
+  
+  // Calculate student year based on academic year starting in September
+  // Started: September 2023, Ends: June 2027
+  // If current month >= 9 (Sep-Dec), we're in the new academic year
+  // If current month < 9 (Jan-Aug), we're still in the previous academic year
+  const studentYear = currentMonth >= 9 
+    ? currentYear - 2023 + 1  // New academic year (Sep onwards)
+    : currentYear - 2023;      // Previous academic year (Jan-Aug)
+  
   const [repoCount, setRepoCount] = useState<number>(8);
   
   // Fetch GitHub repos count
@@ -439,41 +496,66 @@ const AboutPage: React.FC = memo(() => {
 
 const ResumePage: React.FC = memo(() => {
   const { lang } = useLang();
+  const resumeUrl = import.meta.env.VITE_RESUME_URL || '/NguyenHuuThang_Resume.pdf';
+  
   return (
     <PageWrapper title={lang === Language.EN ? 'Resume' : 'Hồ Sơ'}>
       {/* Resume viewer: uses VITE_RESUME_URL from environment */}
       <div className="flex flex-col items-center justify-center space-y-6">
         <div className="w-full max-w-5xl">
-          <div className="mb-4 flex items-center justify-between">
+          <div className="mb-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <div className="w-14 h-14 bg-dark-800 rounded-full flex items-center justify-center text-brand-600">
                 <FileText size={32} />
               </div>
-              <h2 className="text-2xl text-white">
-                {lang === Language.EN ? 'My Resume' : 'Bản Hồ Sơ'}
-              </h2>
+              <div>
+                <h2 className="text-2xl text-white">
+                  {lang === Language.EN ? 'My Resume' : 'Bản Hồ Sơ'}
+                </h2>
+                <p className="text-sm text-gray-400 mt-1">
+                  {lang === Language.EN 
+                    ? 'Click on any link in the PDF to interact' 
+                    : 'Nhấn vào bất kỳ link nào trong PDF để tương tác'}
+                </p>
+              </div>
             </div>
-            <div>
+            <div className="flex gap-3">
               <a
-                href={import.meta.env.VITE_RESUME_URL || '/NguyenHuuThang_Resume.pdf'}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-3 bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-full font-bold transition-all"
+                href={resumeUrl}
+                download="NguyenHuuThang_Resume.pdf"
+                className="inline-flex items-center gap-2 bg-dark-800 hover:bg-dark-700 text-white px-4 py-2 rounded-lg font-medium transition-all border border-dark-700 hover:border-brand-600"
               >
                 <Download size={18} />
-                {lang === Language.EN ? 'Open PDF' : 'Mở PDF'}
+                {lang === Language.EN ? 'Download' : 'Tải về'}
+              </a>
+              <a
+                href={resumeUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg font-medium transition-all shadow-lg hover:shadow-brand-600/50"
+              >
+                <FileText size={18} />
+                {lang === Language.EN ? 'Open in New Tab' : 'Mở tab mới'}
               </a>
             </div>
           </div>
 
-          <div className="bg-dark-800 border border-dark-700 rounded-2xl overflow-hidden" style={{ minHeight: 400 }}>
+          <div className="bg-dark-800 border border-dark-700 rounded-2xl overflow-hidden shadow-2xl" style={{ minHeight: 600 }}>
             <iframe
               title="resume-pdf"
-              src={import.meta.env.VITE_RESUME_URL || '/NguyenHuuThang_Resume.pdf'}
-              className="w-full h-[70vh]"
-              style={{ border: 'none', minHeight: 400 }}
-              sandbox="allow-scripts allow-same-origin allow-popups"
+              src={`${resumeUrl}#toolbar=1&navpanes=1&scrollbar=1`}
+              className="w-full h-[80vh]"
+              style={{ border: 'none', minHeight: 600 }}
+              allow="fullscreen"
             />
+          </div>
+          
+          <div className="mt-4 p-4 bg-dark-800/50 border border-dark-700 rounded-lg">
+            <p className="text-sm text-gray-400 text-center">
+              {lang === Language.EN 
+                ? 'Tip: All links in the PDF are fully interactive. Click them to navigate to external resources.' 
+                : 'Mẹo: Tất cả các link trong PDF đều có thể tương tác. Nhấn vào để điều hướng đến tài nguyên bên ngoài.'}
+            </p>
           </div>
         </div>
       </div>
