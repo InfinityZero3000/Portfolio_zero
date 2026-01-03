@@ -190,24 +190,20 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady }) => {
       myGlobe.width(width);
       myGlobe.height(height);
       
-      // Set textures with error handling
+      // Load background FIRST - independent of globe data
+      try {
+        if (textureURLs.background) {
+          myGlobe.backgroundImageUrl(textureURLs.background); // Show background stars immediately
+        }
+      } catch (e) {
+        console.warn('backgroundImageUrl failed:', e);
+      }
+      
+      // Set textures with error handling - load globe texture
       try {
         myGlobe.globeImageUrl(textureURLs.globe);
       } catch (e) {
         console.warn('globeImageUrl failed:', e);
-      }
-      
-      // DISABLE bumpMap - it can create bright edges/artifacts
-      // try {
-      //   myGlobe.bumpImageUrl(textureURLs.bump);
-      // } catch (e) {
-      //   console.warn('bumpImageUrl failed:', e);
-      // }
-      
-      try {
-        myGlobe.backgroundImageUrl(textureURLs.background); // Show background stars
-      } catch (e) {
-        console.warn('backgroundImageUrl failed:', e);
       }
       
       // CRITICAL: Disable ALL built-in atmosphere/glow effects from Globe.gl
@@ -240,34 +236,6 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady }) => {
       }
 
       const scene = myGlobe.scene();
-    
-    // Add atmospheric glow layer with optimized geometry
-    const atmosphereSegments = deviceCapability.isMobile ? 24 : (deviceCapability.isHighEnd ? 48 : 32);
-    const atmosphereGeometry = new THREE.SphereGeometry(101, atmosphereSegments, atmosphereSegments);
-    const atmosphereMaterial = new THREE.ShaderMaterial({
-      vertexShader: `
-        varying vec3 vNormal;
-        void main() {
-          vNormal = normalize(normalMatrix * normal);
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-      `,
-      fragmentShader: `
-        varying vec3 vNormal;
-        void main() {
-          float intensity = pow(0.65 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.0);
-          gl_FragColor = vec4(0.3, 0.6, 1.0, 1.0) * intensity;
-        }
-      `,
-      blending: THREE.AdditiveBlending,
-      side: THREE.BackSide,
-      transparent: true,
-      depthWrite: false // Optimize transparency rendering
-    });
-    const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
-    atmosphere.scale.set(1.1, 1.1, 1.1);
-    atmosphere.renderOrder = -1; // Render atmosphere first
-    scene.add(atmosphere);
     
     // Simple single ambient light - minimal lighting to test without edge artifacts
     const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
@@ -355,6 +323,50 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady }) => {
       if (myGlobe && mounted) {
         myGlobe.pointOfView({ lat: 16, lng: 106, altitude: 2 }, 1200); // 1.2s animation
         setIsGlobeReady(true);
+        
+        // Add atmospheric glow layer AFTER globe is ready
+        setTimeout(() => {
+          if (!mounted) return;
+          
+          const atmosphereSegments = deviceCapability.isMobile ? 24 : (deviceCapability.isHighEnd ? 48 : 32);
+          const atmosphereGeometry = new THREE.SphereGeometry(101, atmosphereSegments, atmosphereSegments);
+          const atmosphereMaterial = new THREE.ShaderMaterial({
+            vertexShader: `
+              varying vec3 vNormal;
+              void main() {
+                vNormal = normalize(normalMatrix * normal);
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+              }
+            `,
+            fragmentShader: `
+              varying vec3 vNormal;
+              void main() {
+                float intensity = pow(0.65 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.0);
+                gl_FragColor = vec4(0.3, 0.6, 1.0, 1.0) * intensity;
+              }
+            `,
+            blending: THREE.AdditiveBlending,
+            side: THREE.BackSide,
+            transparent: true,
+            depthWrite: false,
+            opacity: 0
+          });
+          const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
+          atmosphere.scale.set(1.1, 1.1, 1.1);
+          atmosphere.renderOrder = -1;
+          
+          // Fade in atmosphere
+          atmosphereMaterial.transparent = true;
+          let opacity = 0;
+          const fadeIn = setInterval(() => {
+            opacity += 0.05;
+            atmosphereMaterial.opacity = Math.min(opacity, 1);
+            atmosphereMaterial.needsUpdate = true;
+            if (opacity >= 1) clearInterval(fadeIn);
+          }, 30);
+          
+          scene.add(atmosphere);
+        }, 500); // Add atmosphere 500ms after zoom starts
       }
     }, 100);
     
