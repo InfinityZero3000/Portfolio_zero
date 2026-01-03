@@ -41,6 +41,7 @@ export interface Project {
 
 export enum SkillLevel {
   BEGINNER = 'Beginner',
+  BASIC = 'Basic',
   INTERMEDIATE = 'Intermediate',
   ADVANCED = 'Advanced',
   EXPERT = 'Expert'

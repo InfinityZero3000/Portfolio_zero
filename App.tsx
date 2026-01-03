@@ -1,23 +1,16 @@
-import React, { useState, createContext, useContext, memo, lazy, Suspense, useEffect, useCallback, useMemo } from 'react';
-import { BrowserRouter, Routes, Route, useLocation, Link, Navigate } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
+import React, { useState, createContext, useContext, memo, lazy, Suspense, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { NAV_ITEMS, PROJECTS, SKILLS, /* ACHIEVEMENTS, */ EDUCATION_DATA, BIO, NAME } from './constants';
-import { Language, RoutePath } from './types';
+import { Language } from './types';
 import { Menu, X, Globe as GlobeIcon, Download, Award, GraduationCap, FileText, Github, Linkedin, Mail, MapPin, Calendar } from 'lucide-react';
 import clsx from 'clsx';
 import { performanceMonitor } from './utils/performance-monitor';
 import { cacheManager } from './utils/cache-manager';
+import { scrollToSection, setupScrollObserver } from './utils/scroll-utils';
 
-// Lazy load GlobeViz component for faster initial load
+// Lazy load components
 const GlobeViz = lazy(() => import('./components/GlobeViz'));
-const LoadingSpinner = lazy(() => import('./components/LoadingSpinner'));
-
-// Simple loading fallback for pages
-const PageLoading = () => (
-  <div className="min-h-screen flex items-center justify-center">
-    <div className="w-8 h-8 border-2 border-brand-600 border-t-transparent rounded-full animate-spin" />
-  </div>
-);
+const StarfieldBackground = lazy(() => import('./components/StarfieldBackground'));
 
 // --- Context ---
 interface LangContextType {
@@ -29,10 +22,14 @@ const useLang = () => useContext(LangContext);
 
 // --- Layout Components ---
 
-const NavBar: React.FC = memo(() => {
+const NavBar: React.FC<{ activeSection: string; onNavigate: (section: string) => void }> = memo(({ activeSection, onNavigate }) => {
   const { lang, toggleLang } = useLang();
   const [isOpen, setIsOpen] = useState(false);
-  const location = useLocation();
+
+  const scrollToSection = (key: string) => {
+    onNavigate(key);
+    setIsOpen(false);
+  };
 
   return (
     <>
@@ -45,12 +42,12 @@ const NavBar: React.FC = memo(() => {
         
         <div className="flex flex-col gap-8">
           {NAV_ITEMS.map((item) => {
-            const isActive = location.pathname === item.path;
+            const isActive = activeSection === item.key;
             const Icon = item.icon;
             return (
-              <Link 
+              <button 
                 key={item.key} 
-                to={item.path}
+                onClick={() => scrollToSection(item.key)}
                 className={clsx(
                   "p-3 rounded-xl transition-all duration-300 relative group",
                   isActive ? "bg-brand-600 text-white shadow-[0_0_15px_rgba(220,38,38,0.5)]" : "text-gray-400 hover:text-white hover:bg-dark-800"
@@ -60,7 +57,7 @@ const NavBar: React.FC = memo(() => {
                 <span className="absolute left-14 bg-brand-600 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
                   {item.label[lang]}
                 </span>
-              </Link>
+              </button>
             );
           })}
         </div>
@@ -101,17 +98,16 @@ const NavBar: React.FC = memo(() => {
             </div>
             <div className="flex flex-col gap-6">
                {NAV_ITEMS.map((item) => (
-                <Link 
+                <button 
                   key={item.key} 
-                  to={item.path}
-                  onClick={() => setIsOpen(false)}
+                  onClick={() => scrollToSection(item.key)}
                   className={clsx(
-                    "text-2xl font-light",
-                    location.pathname === item.path ? "text-brand-500" : "text-gray-300"
+                    "text-2xl font-light text-left",
+                    activeSection === item.key ? "text-brand-500" : "text-gray-300"
                   )}
                 >
                   {item.label[lang]}
-                </Link>
+                </button>
                ))}
             </div>
             <div className="mt-auto">
@@ -126,29 +122,36 @@ const NavBar: React.FC = memo(() => {
   );
 });
 
-const PageWrapper: React.FC<{ children: React.ReactNode; title: string }> = ({ children, title }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    exit={{ opacity: 0, y: -20 }}
-    transition={{ duration: 0.5 }}
-    className="min-h-screen pt-24 pb-12 px-6 md:pl-32 md:pr-12 md:pt-12 max-w-7xl mx-auto"
+const SectionWrapper: React.FC<{ 
+  children: React.ReactNode; 
+  title?: string; 
+  id: string;
+  showHeader?: boolean;
+}> = ({ children, title, id, showHeader = true }) => (
+  <section
+    id={id}
+    className="min-h-screen w-full snap-start snap-always relative"
   >
-    <header className="mb-12 border-b border-gray-800 pb-4">
-      <h1 className="text-4xl md:text-6xl font-bold text-white tracking-tight uppercase">
-        <span className="text-brand-600">/</span> {title}
-      </h1>
-    </header>
-    {children}
-  </motion.div>
+    {showHeader && title && (
+      <div className="pt-24 pb-12 px-6 md:pl-32 md:pr-12 md:pt-12 max-w-7xl mx-auto">
+        <header className="mb-12 border-b border-gray-800 pb-4">
+          <h1 className="text-4xl md:text-6xl font-bold text-white tracking-tight uppercase">
+            <span className="text-brand-600">/</span> {title}
+          </h1>
+        </header>
+        {children}
+      </div>
+    )}
+    {!showHeader && children}
+  </section>
 );
 
-// --- Pages ---
+// --- Sections ---
 
-const HomePage: React.FC = () => {
+const HomeSection: React.FC = () => {
   const { lang } = useLang();
   return (
-    <div className="relative w-full h-screen overflow-hidden bg-dark-900">
+    <section id="home" className="relative w-full h-screen snap-start snap-always">
       <Suspense fallback={null}>
         <GlobeViz />
       </Suspense>
@@ -171,14 +174,14 @@ const HomePage: React.FC = () => {
           {BIO[lang]}
         </p>
       </motion.div>
-    </div>
+    </section>
   );
 };
 
-const ProjectPage: React.FC = memo(() => {
+const ProjectSection: React.FC = memo(() => {
   const { lang } = useLang();
   return (
-    <PageWrapper title={lang === Language.EN ? 'Projects' : 'Dự Án'}>
+    <SectionWrapper id="project" title={lang === Language.EN ? 'Projects' : 'Dự Án'}>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {PROJECTS.map((project) => (
           <div key={project.id} className="group relative bg-dark-800 rounded-2xl overflow-hidden border border-dark-700 hover:border-brand-600 transition-colors duration-300">
@@ -199,11 +202,11 @@ const ProjectPage: React.FC = memo(() => {
           </div>
         ))}
       </div>
-    </PageWrapper>
+    </SectionWrapper>
   );
 });
 
-const SkillPage: React.FC = memo(() => {
+const SkillSection: React.FC = memo(() => {
   const { lang } = useLang();
   
   // Helper function to get skill level display text and color
@@ -245,7 +248,7 @@ const SkillPage: React.FC = memo(() => {
   };
   
   return (
-    <PageWrapper title={lang === Language.EN ? 'Skills' : 'Kỹ Năng'}>
+    <SectionWrapper id="skill" title={lang === Language.EN ? 'Skills' : 'Kỹ Năng'}>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
         {SKILLS.map((section, idx) => (
           <div key={idx}>
@@ -271,7 +274,7 @@ const SkillPage: React.FC = memo(() => {
           </div>
         ))}
       </div>
-    </PageWrapper>
+    </SectionWrapper>
   );
 });
 
@@ -297,10 +300,10 @@ const SkillPage: React.FC = memo(() => {
 //   );
 // });
 
-const EducationPage: React.FC = memo(() => {
+const EducationSection: React.FC = memo(() => {
   const { lang } = useLang();
   return (
-    <PageWrapper title={lang === Language.EN ? 'Education' : 'Học Vấn'}>
+    <SectionWrapper id="education" title={lang === Language.EN ? 'Education' : 'Học Vấn'}>
       <div className="space-y-8 max-w-3xl">
         {EDUCATION_DATA.map((item) => (
           <div key={item.id} className="bg-dark-800 p-8 rounded-2xl border border-dark-700 relative overflow-hidden">
@@ -318,11 +321,11 @@ const EducationPage: React.FC = memo(() => {
           </div>
         ))}
       </div>
-    </PageWrapper>
+    </SectionWrapper>
   );
 });
 
-const AboutPage: React.FC = memo(() => {
+const AboutSection: React.FC = memo(() => {
   const { lang } = useLang();
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1; // getMonth() returns 0-11, so add 1
@@ -367,7 +370,7 @@ const AboutPage: React.FC = memo(() => {
   }, []);
   
   return (
-    <PageWrapper title={lang === Language.EN ? 'About Me' : 'Về Tôi'}>
+    <SectionWrapper id="about" title={lang === Language.EN ? 'About Me' : 'Về Tôi'}>
       <div className="max-w-6xl mx-auto space-y-12">
         {/* Profile Header */}
         <div className="flex flex-col lg:flex-row gap-8 items-start">
@@ -490,16 +493,16 @@ const AboutPage: React.FC = memo(() => {
           </div>
         </div>
       </div>
-    </PageWrapper>
+    </SectionWrapper>
   );
 });
 
-const ResumePage: React.FC = memo(() => {
+const ResumeSection: React.FC = memo(() => {
   const { lang } = useLang();
   const resumeUrl = import.meta.env.VITE_RESUME_URL || '/NguyenHuuThang_Resume.pdf';
   
   return (
-    <PageWrapper title={lang === Language.EN ? 'Resume' : 'Hồ Sơ'}>
+    <SectionWrapper id="resume" title={lang === Language.EN ? 'Resume' : 'Hồ Sơ'}>
       {/* Resume viewer: uses VITE_RESUME_URL from environment */}
       <div className="flex flex-col items-center justify-center space-y-6">
         <div className="w-full max-w-5xl">
@@ -559,37 +562,30 @@ const ResumePage: React.FC = memo(() => {
           </div>
         </div>
       </div>
-    </PageWrapper>
+    </SectionWrapper>
   );
 });
 
 // --- Main App ---
 
-const AnimatedRoutes: React.FC = () => {
-  const location = useLocation();
-  return (
-    <AnimatePresence mode="wait">
-      <Routes location={location}>
-        <Route path={RoutePath.HOME} element={<HomePage />} />
-        <Route path={RoutePath.PROJECT} element={<ProjectPage />} />
-        <Route path={RoutePath.SKILL} element={<SkillPage />} />
-        {/* <Route path={RoutePath.ACHIEVEMENTS} element={<AchievementsPage />} /> */}
-        <Route path={RoutePath.EDUCATION} element={<EducationPage />} />
-        <Route path={RoutePath.ABOUT} element={<AboutPage />} />
-        <Route path={RoutePath.RESUME} element={<ResumePage />} />
-        <Route path="*" element={<Navigate to={RoutePath.HOME} />} />
-      </Routes>
-    </AnimatePresence>
-  );
-};
-
 export default function App() {
   const [lang, setLang] = useState<Language>(Language.EN);
+  const [activeSection, setActiveSection] = useState('home');
   
   const toggleLang = useCallback(() => {
     setLang(prev => prev === Language.EN ? Language.VI : Language.EN);
   }, []);
+  
+  const handleNavigate = useCallback((sectionKey: string) => {
+    scrollToSection(sectionKey);
+  }, []);
 
+  // Setup scroll observer for active section tracking
+  useEffect(() => {
+    const cleanup = setupScrollObserver(setActiveSection);
+    return cleanup;
+  }, []);
+  
   // Initialize performance monitoring
   useEffect(() => {
     // Log performance metrics on mount
@@ -615,12 +611,25 @@ export default function App() {
 
   return (
     <LangContext.Provider value={{ lang, toggleLang }}>
-      <BrowserRouter>
-        <div className="bg-dark-900 text-white min-h-screen font-sans selection:bg-brand-600 selection:text-white">
-          <NavBar />
-          <AnimatedRoutes />
-        </div>
-      </BrowserRouter>
+      <div className="bg-dark-900 text-white font-sans selection:bg-brand-600 selection:text-white">
+        {/* Global Starfield Background */}
+        <Suspense fallback={null}>
+          <StarfieldBackground />
+        </Suspense>
+        
+        {/* Fixed Navigation */}
+        <NavBar activeSection={activeSection} onNavigate={handleNavigate} />
+        
+        {/* Scrollable Content with Snap */}
+        <main className="snap-y snap-mandatory h-screen overflow-y-scroll scroll-smooth relative z-10">
+          <HomeSection />
+          <ProjectSection />
+          <AboutSection />
+          <ResumeSection />
+          <SkillSection />
+          <EducationSection />
+        </main>
+      </div>
     </LangContext.Provider>
   );
 }

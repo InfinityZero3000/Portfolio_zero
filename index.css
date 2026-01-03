@@ -17,6 +17,7 @@ body {
   background-color: #0a0a0a;
   color: #e5e5e5;
   overflow-x: hidden;
+  overflow-y: hidden; /* Prevent body scroll, let main handle it */
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -28,6 +29,38 @@ body {
 nav[class*="fixed"] {
   position: fixed !important;
   will-change: auto;
+}
+
+/* Scroll snap utilities */
+.snap-y {
+  scroll-snap-type: y mandatory;
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+}
+
+.snap-start {
+  scroll-snap-align: start;
+}
+
+.snap-always {
+  scroll-snap-stop: always;
+}
+
+/* Hide scrollbar but keep functionality */
+.snap-y::-webkit-scrollbar {
+  width: 8px;
+}
+
+.snap-y::-webkit-scrollbar-track {
+  background: rgba(10, 10, 10, 0.5);
+}
+
+.snap-y::-webkit-scrollbar-thumb {
+  background: rgba(220, 38, 38, 0.3);
+  border-radius: 4px;
+}
+
+.snap-y::-webkit-scrollbar-thumb:hover {
+  background: rgba(220, 38, 38, 0.5);
 }
 
 #root {
