@@ -121,27 +121,34 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady }) => {
 
     let mounted = true;
     
-    // Load Globe from CDN with retry mechanism and timeout
+    // Load Globe from CDN with retry mechanism and proper async handling
     const loadGlobe = async () => {
       if (!mounted || !containerRef.current) return;
       
-      // Wait for Globe to be loaded from CDN with timeout (max 10 seconds)
+      // Wait for Globe to be loaded from CDN with event-based approach
       const Globe = await new Promise<any>((resolve, reject) => {
-        let attempts = 0;
-        const maxAttempts = 200; // 200 * 50ms = 10 seconds
+        // Check if already loaded
+        if ((window as any).Globe) {
+          resolve((window as any).Globe);
+          return;
+        }
         
-        const checkGlobe = () => {
+        // Use event listener for async script loading
+        const onGlobeReady = () => {
+          window.removeEventListener('globeReady', onGlobeReady);
+          resolve((window as any).Globe);
+        };
+        window.addEventListener('globeReady', onGlobeReady);
+        
+        // Fallback timeout (8 seconds)
+        setTimeout(() => {
+          window.removeEventListener('globeReady', onGlobeReady);
           if ((window as any).Globe) {
             resolve((window as any).Globe);
-          } else if (attempts < maxAttempts) {
-            attempts++;
-            setTimeout(checkGlobe, 50);
           } else {
-            console.error('Failed to load Globe from CDN after 10 seconds');
             reject(new Error('Globe CDN timeout'));
           }
-        };
-        checkGlobe();
+        }, 8000);
       });
       
       if (!Globe || !mounted || !containerRef.current) return;
@@ -165,6 +172,17 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady }) => {
       // Call the instance function with container and chain methods
       const myGlobe = globeInstance(containerRef.current);
       
+      // CRITICAL: Configure renderer settings BEFORE any initialization
+      // This ensures Globe.gl creates the WebGL context with proper alpha support
+      if (myGlobe.rendererConfig) {
+        myGlobe.rendererConfig({
+          alpha: true,
+          premultipliedAlpha: false,
+          antialias: true,
+          powerPreference: 'high-performance'
+        });
+      }
+      
       // Set dimensions
       myGlobe.width(width);
       myGlobe.height(height);
@@ -176,80 +194,80 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady }) => {
         console.warn('globeImageUrl failed:', e);
       }
       
-      try {
-        myGlobe.bumpImageUrl(textureURLs.bump);
-      } catch (e) {
-        console.warn('bumpImageUrl failed:', e);
-      }
+      // DISABLE bumpMap - it can create bright edges/artifacts
+      // try {
+      //   myGlobe.bumpImageUrl(textureURLs.bump);
+      // } catch (e) {
+      //   console.warn('bumpImageUrl failed:', e);
+      // }
       
       try {
         myGlobe.backgroundImageUrl(textureURLs.background); // Show background stars
       } catch (e) {
         console.warn('backgroundImageUrl failed:', e);
       }
+      
+      // CRITICAL: Disable ALL built-in atmosphere/glow effects from Globe.gl
+      try {
+        myGlobe.atmosphereColor('rgba(0,0,0,0)'); // Make atmosphere completely transparent
+        myGlobe.atmosphereAltitude(0); // Set atmosphere height to 0
+      } catch (e) {
+        console.warn('Failed to disable atmosphere:', e);
+      }
+      
+      // CRITICAL: Get renderer and configure IMMEDIATELY with alpha support
+      const renderer = myGlobe.renderer();
+      
+      // Get WebGL context
+      const canvas = renderer.domElement;
+      const glContext = renderer.getContext();
+      
+      // CRITICAL: Do NOT use setClearColor - it causes black borders!
+      // Instead, rely purely on CSS transparency and alpha-enabled WebGL context
+      
+      // Force canvas to be completely transparent via CSS only
+      canvas.style.background = 'none';
+      canvas.style.backgroundColor = 'transparent';
+      canvas.style.opacity = '1';
+      
+      // Force container to also be transparent
+      if (containerRef.current) {
+        containerRef.current.style.background = 'none';
+        containerRef.current.style.backgroundColor = 'transparent';
+      }
 
       const scene = myGlobe.scene();
-      
-      const createCustomAtmosphere = () => {
-        // Vertex shader for atmosphere glow
-        const atmosphereVertexShader = `
-          varying vec3 vNormal;
-          void main() {
-            vNormal = normalize(normalMatrix * normal);
-            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-          }
-        `;
-        
-        // Fragment shader for outer glow effect
-        const atmosphereFragmentShader = `
-          varying vec3 vNormal;
-          void main() {
-            float intensity = pow(0.6 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.0);
-            gl_FragColor = vec4(0.3, 0.6, 1.0, 1.0) * intensity;
-          }
-        `;
-        
-        // Create atmosphere sphere slightly larger than globe
-        const atmosphereGeometry = new THREE.SphereGeometry(102, 128, 128); // 2 units larger than globe (100)
-        const atmosphereMaterial = new THREE.ShaderMaterial({
-          vertexShader: atmosphereVertexShader,
-          fragmentShader: atmosphereFragmentShader,
-          blending: THREE.AdditiveBlending,
-          side: THREE.BackSide, // Render only the back side for outer glow
-          transparent: true,
-          depthWrite: false, // Don't write to depth buffer to avoid z-fighting
-        });
-        
-        const atmosphereMesh = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
-        atmosphereMesh.scale.set(1.15, 1.15, 1.15); // Scale up for outer glow effect
-        scene.add(atmosphereMesh);
-      };
-      
-      createCustomAtmosphere();
     
-    // Add strong ambient light for bright, even illumination
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
+    // Add atmospheric glow layer
+    const atmosphereGeometry = new THREE.SphereGeometry(101, 64, 64);
+    const atmosphereMaterial = new THREE.ShaderMaterial({
+      vertexShader: `
+        varying vec3 vNormal;
+        void main() {
+          vNormal = normalize(normalMatrix * normal);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        varying vec3 vNormal;
+        void main() {
+          float intensity = pow(0.65 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.0);
+          gl_FragColor = vec4(0.3, 0.6, 1.0, 1.0) * intensity;
+        }
+      `,
+      blending: THREE.AdditiveBlending,
+      side: THREE.BackSide,
+      transparent: true
+    });
+    const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
+    atmosphere.scale.set(1.1, 1.1, 1.1);
+    scene.add(atmosphere);
+    
+    // Simple single ambient light - minimal lighting to test without edge artifacts
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
     scene.add(ambientLight);
-    
-    // Add directional light from sun position for highlights
-    const sunLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    const currentSun = getSunPosition(new Date());
-    const phi = (90 - currentSun.lat) * Math.PI / 180;
-    const theta = (currentSun.lng + 180) * Math.PI / 180;
-    const distance = 300;
-    
-    sunLight.position.set(
-      -distance * Math.sin(phi) * Math.cos(theta),
-      distance * Math.cos(phi),
-      distance * Math.sin(phi) * Math.sin(theta)
-    );
-    
-    sunLight.castShadow = false;
-    scene.add(sunLight);
-    sunLightRef.current = sunLight;
 
     // Optimize renderer for maximum sharpness
-    const renderer = myGlobe.renderer();
     renderer.setPixelRatio(rendererSettings.pixelRatio);
     renderer.powerPreference = rendererSettings.powerPreference as any;
     
@@ -262,34 +280,38 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady }) => {
     (renderer as any).toneMapping = 4; // ACES Filmic tone mapping for better visuals
     (renderer as any).toneMappingExposure = 1.0;
     
-    // Set target frame rate for consistent animation
-    myGlobe.rendererConfig = myGlobe.rendererConfig || {};
-    myGlobe.rendererConfig.antialias = true;
-    
     // Apply maximum texture filtering for sharpness
-    const gl = renderer.getContext();
     // Get maximum anisotropic filtering available (usually 16)
-    const ext = gl.getExtension('EXT_texture_filter_anisotropic') || 
-                gl.getExtension('WEBKIT_EXT_texture_filter_anisotropic') || 
-                gl.getExtension('MOZ_EXT_texture_filter_anisotropic');
-    const maxAnisotropy = ext ? gl.getParameter(ext.MAX_TEXTURE_MAX_ANISOTROPY_EXT) : 16;
+    const ext = glContext.getExtension('EXT_texture_filter_anisotropic') || 
+                glContext.getExtension('WEBKIT_EXT_texture_filter_anisotropic') || 
+                glContext.getExtension('MOZ_EXT_texture_filter_anisotropic');
+    const maxAnisotropy = ext ? glContext.getParameter(ext.MAX_TEXTURE_MAX_ANISOTROPY_EXT) : 16;
     
-    // Optimize scene and textures with maximum sharpness
+    // Optimize scene and textures with balanced quality/performance
     scene.traverse((object: any) => {
       if (object.isMesh) {
-        // Increase sphere geometry resolution for smoother, sharper surface
+        // Use moderate sphere resolution for good quality + performance balance
         if (object.geometry && object.geometry.type === 'SphereGeometry') {
           const oldGeometry = object.geometry;
-          // Replace with high-res sphere (128 segments vs default ~64)
+          // 64 segments provides good quality without heavy GPU load
+          const segments = deviceCapability.isHighEnd ? 96 : 64;
           object.geometry = new THREE.SphereGeometry(
             oldGeometry.parameters?.radius || 100,
-            128, // width segments - higher = smoother
-            128  // height segments - higher = smoother
+            segments, // width segments - balanced for performance
+            segments  // height segments - balanced for performance
           );
           oldGeometry.dispose();
         }
         
         if (object.material) {
+          // CRITICAL: Remove all emissive/glow properties that create bright edges
+          if (object.material.emissive) {
+            object.material.emissive.setHex(0x000000); // No emissive glow
+          }
+          if (object.material.emissiveIntensity !== undefined) {
+            object.material.emissiveIntensity = 0; // No glow intensity
+          }
+          
           if (object.material.map) {
             // Use maximum anisotropic filtering for sharpest textures
             object.material.map.anisotropy = maxAnisotropy;
@@ -303,10 +325,8 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady }) => {
             object.material.map.wrapT = THREE.ClampToEdgeWrapping;
           }
           if (object.material.bumpMap) {
-            object.material.bumpMap.anisotropy = maxAnisotropy;
-            object.material.bumpMap.minFilter = THREE.LinearMipmapLinearFilter;
-            object.material.bumpMap.magFilter = THREE.LinearFilter;
-            object.material.bumpMap.generateMipmaps = true;
+            // DISABLE bumpMap to prevent edge artifacts
+            object.material.bumpMap = null;
           }
           // Increase material quality
           if (object.material.needsUpdate !== undefined) {
@@ -345,17 +365,28 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady }) => {
 
         globeRef.current = myGlobe;
         
-        // Optimize animation loop for smooth 60 FPS
-        const animate = () => {
+        // Throttled animation loop for better performance
+        let lastTime = 0;
+        const targetFPS = deviceCapability.isMobile ? 30 : 60;
+        const frameInterval = 1000 / targetFPS;
+        
+        const animate = (currentTime: number) => {
           if (!mounted) return;
           requestAnimationFrame(animate);
           
-          // Smooth auto-rotation update
+          // Throttle frame rate on mobile devices
+          const deltaTime = currentTime - lastTime;
+          if (deltaTime < frameInterval) return;
+          lastTime = currentTime - (deltaTime % frameInterval);
+          
+          // Only update controls if auto-rotating
           if (controls.autoRotate) {
             controls.update();
           }
         };
-        animate();
+        requestAnimationFrame(animate);
+        
+        // CSS transparency is sufficient - no need for delayed setClearColor
 
         if (onGlobeReady) {
           onGlobeReady();
@@ -414,6 +445,8 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady }) => {
         willChange: 'transform', // Optimize for smooth animations
         backfaceVisibility: 'hidden', // Improve rendering performance
         WebkitFontSmoothing: 'antialiased', // Smoother rendering
+        background: 'transparent', // Ensure container is transparent
+        backgroundColor: 'transparent', // No background color
       }}
     />
   );

@@ -1,4 +1,4 @@
-import { Language, RoutePath, NavItem, Project, Achievement, SkillCategory } from './types';
+import { Language, RoutePath, NavItem, Project, Achievement, SkillCategory, Skill, SkillLevel } from './types';
 import { 
   Home, 
   Briefcase, 
@@ -105,19 +105,38 @@ export const PROJECTS: Project[] = [
 export const SKILLS: SkillCategory[] = [
   {
     category: { [Language.EN]: 'Frontend', [Language.VI]: 'Frontend' },
-    items: ['React.js', 'TypeScript', 'Next.js', 'Tailwind CSS', 'Bootstrap']
+    items: [
+      { name: 'React.js', level: SkillLevel.ADVANCED },
+      { name: 'Next.js', level: SkillLevel.ADVANCED },
+      { name: 'Tailwind CSS', level: SkillLevel.EXPERT },
+      { name: 'Bootstrap', level: SkillLevel.ADVANCED }
+    ]
   },
   {
     category: { [Language.EN]: 'Backend', [Language.VI]: 'Backend' },
-    items: ['Node.js', 'NestJS', 'Python','C/C++','.NET Core 9.0', 'PostgreSQL','SQL Server', 'Redis']
+    items: [
+      { name: 'Python', level: SkillLevel.ADVANCED },
+      { name: 'C/C++', level: SkillLevel.INTERMEDIATE },
+      { name: '.NET Core 9.0', level: SkillLevel.INTERMEDIATE },
+      { name: 'Redis', level: SkillLevel.INTERMEDIATE }
+    ]
   },
   {
     category: { [Language.EN]: 'DevOps', [Language.VI]: 'Vận Hành' },
-    items: ['Docker', 'AWS', 'CI/CD Pipelines', 'GitHub Actions']
+    items: [
+      { name: 'Docker', level: SkillLevel.INTERMEDIATE },
+      { name: 'CI/CD Pipelines', level: SkillLevel.INTERMEDIATE },
+      { name: 'GitHub Actions', level: SkillLevel.ADVANCED }
+    ]
   },
   {
     category: { [Language.EN]: 'AI & Data', [Language.VI]: 'AI & Dữ Liệu' },
-    items: ['Machine Learning', 'Gemini API', 'Data Analysis', 'NLP']
+    items: [
+      { name: 'PostgreSQL', level: SkillLevel.ADVANCED },
+      { name: 'SQL Server', level: SkillLevel.ADVANCED },
+      { name: 'Machine Learning', level: SkillLevel.INTERMEDIATE },
+      { name: 'NLP', level: SkillLevel.INTERMEDIATE }
+    ]
   }
 ];
 
@@ -155,4 +174,9 @@ export const EDUCATION_DATA = [
 export const BIO = {
   [Language.EN]: "I'm Zero, a Software Developer passionate about crafting immersive digital experiences. Work and study in Ho Chi Minh City, I blend technical precision with artistic motion to build the future of the web.",
   [Language.VI]: "Tôi là Zero, một Lập Trình Viên Phần Mềm với niềm đam mê tạo ra các trải nghiệm kỹ thuật số sống động. Học và làm việc tại TP.HCM, tôi kết hợp sự chính xác về kỹ thuật với nghệ thuật chuyển động để xây dựng tương lai của web."
+};
+
+export const NAME = {
+  [Language.EN]: 'Nguyen Huu Thang',
+  [Language.VI]: 'Nguyễn Hữu Thắng'
 };

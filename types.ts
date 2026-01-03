@@ -39,7 +39,19 @@ export interface Project {
   link?: string;
 }
 
+export enum SkillLevel {
+  BEGINNER = 'Beginner',
+  INTERMEDIATE = 'Intermediate',
+  ADVANCED = 'Advanced',
+  EXPERT = 'Expert'
+}
+
+export interface Skill {
+  name: string;
+  level: SkillLevel;
+}
+
 export interface SkillCategory {
   category: { [key in Language]: string };
-  items: string[];
+  items: Skill[];
 }

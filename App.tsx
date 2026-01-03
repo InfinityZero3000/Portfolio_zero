@@ -1,7 +1,7 @@
-import React, { useState, createContext, useContext, memo, lazy, Suspense, useEffect } from 'react';
+import React, { useState, createContext, useContext, memo, lazy, Suspense, useEffect, useCallback, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, useLocation, Link, Navigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { NAV_ITEMS, PROJECTS, SKILLS, /* ACHIEVEMENTS, */ EDUCATION_DATA, BIO } from './constants';
+import { NAV_ITEMS, PROJECTS, SKILLS, /* ACHIEVEMENTS, */ EDUCATION_DATA, BIO, NAME } from './constants';
 import { Language, RoutePath } from './types';
 import { Menu, X, Globe as GlobeIcon, Download, Award, GraduationCap, FileText, Github, Linkedin, Mail, MapPin, Calendar } from 'lucide-react';
 import clsx from 'clsx';
@@ -10,6 +10,13 @@ import { cacheManager } from './utils/cache-manager';
 
 // Lazy load GlobeViz component for faster initial load
 const GlobeViz = lazy(() => import('./components/GlobeViz'));
+
+// Simple loading fallback for pages
+const PageLoading = () => (
+  <div className="min-h-screen flex items-center justify-center">
+    <div className="w-8 h-8 border-2 border-brand-600 border-t-transparent rounded-full animate-spin" />
+  </div>
+);
 
 // --- Context ---
 interface LangContextType {
@@ -29,7 +36,7 @@ const NavBar: React.FC = memo(() => {
   return (
     <>
       {/* Desktop Nav */}
-      <nav className="fixed top-0 left-0 h-full w-24 hidden md:flex flex-col items-center justify-between py-8 bg-dark-900/80 backdrop-blur-md border-r border-dark-700 z-50">
+      <nav className="fixed top-0 left-0 h-screen w-24 hidden md:flex flex-col items-center justify-between py-8 bg-dark-900/80 backdrop-blur-md border-r border-dark-700 z-50">
         <div className="text-brand-600 font-bold text-2xl tracking-tighter">ZERO</div>
         
         <div className="flex flex-col gap-8">
@@ -204,9 +211,12 @@ const SkillPage: React.FC = memo(() => {
             </h3>
             <div className="flex flex-col gap-3">
               {section.items.map((skill) => (
-                <div key={skill} className="flex items-center gap-3 group">
-                   <div className="w-2 h-2 bg-gray-700 rounded-full group-hover:bg-brand-500 transition-colors" />
-                   <span className="text-lg text-gray-300 group-hover:text-white transition-colors">{skill}</span>
+                <div key={skill.name} className="flex items-center justify-between gap-3 group">
+                  <div className="flex items-center gap-3">
+                    <div className="w-2 h-2 bg-gray-700 rounded-full group-hover:bg-brand-500 transition-colors" />
+                    <span className="text-lg text-gray-300 group-hover:text-white transition-colors">{skill.name}</span>
+                  </div>
+                  <span className="text-sm text-gray-500 group-hover:text-brand-400 transition-colors">{skill.level}</span>
                 </div>
               ))}
             </div>
@@ -268,7 +278,7 @@ const AboutPage: React.FC = memo(() => {
   const { lang } = useLang();
   const currentYear = new Date().getFullYear();
   const age = currentYear - 2005;
-  const studentYear = currentYear - 2023 + 1; // Started in 2023
+  const studentYear = currentYear - 2023 + 1; 
   const [repoCount, setRepoCount] = useState<number>(8);
   
   // Fetch GitHub repos count
@@ -306,7 +316,7 @@ const AboutPage: React.FC = memo(() => {
         <div className="flex flex-col lg:flex-row gap-8 items-start">
           <div className="flex-1 space-y-6">
             <div>
-              <h2 className="text-4xl font-bold text-white mb-2">Nguyễn Hữu Thắng</h2>
+              <h2 className="text-4xl font-bold text-white mb-2">{NAME[lang]}</h2>
               <a 
                 href="https://github.com/InfinityZero3000" 
                 target="_blank" 
@@ -336,7 +346,7 @@ const AboutPage: React.FC = memo(() => {
             <div className="text-lg text-gray-300 leading-relaxed space-y-4">
               <p>
                 {lang === Language.EN 
-                 ? "Hello! I'm Thắng, a passionate Software Developer currently pursuing my degree in Software Technology at Ho Chi Minh City University of Industry and Trade. My journey into the world of programming started with a curiosity about how things work behind the scenes, and it has evolved into a deep passion for creating meaningful digital experiences."
+                 ? "Hello! I'm Thang, a passionate Software Developer currently pursuing my degree in Software Technology at Ho Chi Minh City University of Industry and Trade. My journey into the world of programming started with a curiosity about how things work behind the scenes, and it has evolved into a deep passion for creating meaningful digital experiences."
                  : "Xin chào! Tôi là Thắng, một Lập Trình Viên Phần Mềm đầy nhiệt huyết đang theo học ngành Công nghệ Phần mềm tại Trường Đại học Công Thương TP.HCM. Hành trình lập trình của tôi bắt đầu từ sự tò mò về cách mọi thứ hoạt động, và đã phát triển thành niềm đam mê sâu sắc trong việc tạo ra những trải nghiệm kỹ thuật số có ý nghĩa."}
               </p>
               <p>
@@ -368,7 +378,7 @@ const AboutPage: React.FC = memo(() => {
                 <span>GitHub</span>
               </a>
               <a 
-                href="https://www.linkedin.com/in/th%E1%BA%AFng-nguy%E1%BB%85n-h%E1%BB%AFu-82a5a0335/" 
+                href="https://www.linkedin.com/in/zero-nguyen/" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 px-4 py-2 bg-dark-800 hover:bg-dark-700 text-white rounded-lg transition-colors group"
@@ -377,7 +387,7 @@ const AboutPage: React.FC = memo(() => {
                 <span>LinkedIn</span>
               </a>
               <a 
-                href="mailto:nhthang.dev@gmail.com"
+                href="mailto:nhthang312@gmail.com"
                 className="flex items-center gap-2 px-4 py-2 bg-dark-800 hover:bg-dark-700 text-white rounded-lg transition-colors group"
               >
                 <Mail size={20} className="group-hover:text-brand-500 transition-colors" />
@@ -431,17 +441,41 @@ const ResumePage: React.FC = memo(() => {
   const { lang } = useLang();
   return (
     <PageWrapper title={lang === Language.EN ? 'Resume' : 'Hồ Sơ'}>
-      <div className="flex flex-col items-center justify-center min-h-[50vh] text-center space-y-8">
-        <div className="w-24 h-24 bg-dark-800 rounded-full flex items-center justify-center text-brand-600 animate-pulse">
-           <FileText size={48} />
+      {/* Resume viewer: uses VITE_RESUME_URL from environment */}
+      <div className="flex flex-col items-center justify-center space-y-6">
+        <div className="w-full max-w-5xl">
+          <div className="mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 bg-dark-800 rounded-full flex items-center justify-center text-brand-600">
+                <FileText size={32} />
+              </div>
+              <h2 className="text-2xl text-white">
+                {lang === Language.EN ? 'My Resume' : 'Bản Hồ Sơ'}
+              </h2>
+            </div>
+            <div>
+              <a
+                href={import.meta.env.VITE_RESUME_URL || '/NguyenHuuThang_Resume.pdf'}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-3 bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-full font-bold transition-all"
+              >
+                <Download size={18} />
+                {lang === Language.EN ? 'Open PDF' : 'Mở PDF'}
+              </a>
+            </div>
+          </div>
+
+          <div className="bg-dark-800 border border-dark-700 rounded-2xl overflow-hidden" style={{ minHeight: 400 }}>
+            <iframe
+              title="resume-pdf"
+              src={import.meta.env.VITE_RESUME_URL || '/NguyenHuuThang_Resume.pdf'}
+              className="w-full h-[70vh]"
+              style={{ border: 'none', minHeight: 400 }}
+              sandbox="allow-scripts allow-same-origin allow-popups"
+            />
+          </div>
         </div>
-        <h2 className="text-2xl text-white">
-          {lang === Language.EN ? 'Ready to work together?' : 'Sẵn sàng hợp tác?'}
-        </h2>
-        <button className="bg-brand-600 hover:bg-brand-700 text-white px-8 py-4 rounded-full font-bold text-lg transition-all transform hover:scale-105 shadow-[0_0_20px_rgba(220,38,38,0.4)] flex items-center gap-3">
-          <Download size={24} />
-          {lang === Language.EN ? 'Download CV (PDF)' : 'Tải Xuống CV (PDF)'}
-        </button>
       </div>
     </PageWrapper>
   );
@@ -470,9 +504,9 @@ const AnimatedRoutes: React.FC = () => {
 export default function App() {
   const [lang, setLang] = useState<Language>(Language.EN);
   
-  const toggleLang = () => {
+  const toggleLang = useCallback(() => {
     setLang(prev => prev === Language.EN ? Language.VI : Language.EN);
-  };
+  }, []);
 
   // Initialize performance monitoring
   useEffect(() => {

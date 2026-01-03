@@ -34,25 +34,43 @@
     <link rel="preconnect" href="https://unpkg.com" crossorigin>
     <link rel="dns-prefetch" href="https://raw.githubusercontent.com">
     
-    <!-- Preload critical Globe textures for faster 3D rendering -->
-    <link rel="preload" href="https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg" as="image" fetchpriority="high">
-    <link rel="preload" href="https://unpkg.com/three-globe/example/img/earth-topology.png" as="image" fetchpriority="low">
+    <!-- Preload critical resources -->
+    <link rel="preload" href="https://unpkg.com/globe.gl@2.31.0/dist/globe.gl.min.js" as="script" crossorigin>
     
-    <!-- Optimized font loading with font-display swap -->
-    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet"></noscript>
+    <!-- Defer non-critical images - let them load after initial render -->
+    <!-- Globe textures will be loaded by the component with proper caching -->
     
-    <!-- Load Globe.gl from CDN - must load before React app -->
-    <script src="https://unpkg.com/globe.gl@2.31.0/dist/globe.gl.min.js"></script>
-    <!-- Debug: Check if Globe loaded -->
+    <!-- Optimized font loading - use font-display: swap for faster initial render -->
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet"></noscript>
+    
+    <!-- Inline critical font weights to reduce requests -->
+    <style>
+      @font-face {
+        font-family: 'Inter';
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+        src: local('Inter Regular'), local('Inter-Regular');
+      }
+    </style>
+    
+    <!-- Load Globe.gl from CDN with async for non-blocking load -->
     <script>
-      window.addEventListener('load', function() {
-        if (typeof Globe === 'undefined') {
-          console.error('Globe failed to load from CDN');
-        } else {
-          console.log('Globe loaded successfully:', typeof Globe);
-        }
-      });
+      // Load Globe.gl asynchronously to not block initial render
+      (function() {
+        var script = document.createElement('script');
+        script.src = 'https://unpkg.com/globe.gl@2.31.0/dist/globe.gl.min.js';
+        script.async = true;
+        script.onload = function() {
+          window.globeLoaded = true;
+          window.dispatchEvent(new Event('globeReady'));
+        };
+        script.onerror = function() {
+          console.error('Failed to load Globe.gl from CDN');
+        };
+        document.head.appendChild(script);
+      })();
     </script>
     
     <!-- Inline critical CSS to prevent FOUC -->

@@ -66,16 +66,33 @@ export function detectDeviceCapability(): DeviceCapability {
  * Get optimal texture URLs based on device capability
  */
 export function getOptimalTextureURLs(capability: DeviceCapability) {
-  // Use high-resolution NASA Blue Marble textures for maximum sharpness
-  // These are 8K textures from NASA's Earth Observatory
-  const highResURL = 'https://unpkg.com/three-globe@2.31.0/example/img/';
+  const baseURL = 'https://unpkg.com/three-globe@2.31.0/example/img/';
   
-  // Always use highest quality textures for best sharpness
+  // Use adaptive quality based on device capability
+  if (capability.isMobile) {
+    // Mobile: Use smaller textures for faster loading
+    return {
+      globe: `${baseURL}earth-blue-marble.jpg`,
+      bump: null, // Disable bump map on mobile for better performance
+      background: null, // Disable background on mobile
+      quality: 'low' as const,
+    };
+  } else if (!capability.isHighEnd) {
+    // Mid-range: Standard textures without bump
+    return {
+      globe: `${baseURL}earth-blue-marble.jpg`,
+      bump: null,
+      background: `${baseURL}night-sky.png`,
+      quality: 'medium' as const,
+    };
+  }
+  
+  // High-end: Full quality
   return {
-    globe: `${highResURL}earth-blue-marble.jpg`, // NASA Blue Marble - highest quality available
-    bump: `${highResURL}earth-topology.png`, // High detail topology map
-    background: `${highResURL}night-sky.png`,
-    quality: 'ultra' as const,
+    globe: `${baseURL}earth-blue-marble.jpg`,
+    bump: `${baseURL}earth-topology.png`,
+    background: `${baseURL}night-sky.png`,
+    quality: 'high' as const,
   };
 }
 
@@ -149,14 +166,18 @@ export function clearTextureCache(): void {
  * Get optimal renderer settings based on device
  */
 export function getOptimalRendererSettings(capability: DeviceCapability) {
+  // Limit pixel ratio to prevent excessive GPU load
+  const maxPixelRatio = capability.isMobile ? 1.5 : (capability.isHighEnd ? 2 : 1.5);
+  const pixelRatio = Math.min(window.devicePixelRatio || 1, maxPixelRatio);
+  
   return {
-    antialias: true, // Always enable for sharp edges
+    antialias: !capability.isMobile, // Disable antialiasing on mobile for performance
     powerPreference: 'high-performance',
-    pixelRatio: window.devicePixelRatio || 2, // Use native device pixel ratio for maximum sharpness
-    alpha: false, // Opaque background is faster
-    stencil: false, // Not needed for globe
+    pixelRatio,
+    alpha: true, // Required for transparent background
+    stencil: false,
     depth: true,
-    logarithmicDepthBuffer: false, // Usually not needed, adds overhead
+    logarithmicDepthBuffer: false,
   } as const;
 }
 
