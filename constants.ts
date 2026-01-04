@@ -1,12 +1,12 @@
 import { Language, RoutePath, NavItem, Project, Achievement, SkillCategory, Skill, SkillLevel } from './types';
-import { 
-  Home, 
-  Briefcase, 
-  Cpu, 
-  Award, 
-  GraduationCap, 
-  User, 
-  FileText 
+import {
+  Home,
+  Briefcase,
+  Cpu,
+  Award,
+  GraduationCap,
+  User,
+  FileText
 } from 'lucide-react';
 
 export const NAV_ITEMS: (NavItem & { icon: any })[] = [
@@ -164,16 +164,16 @@ export const SKILLS: SkillCategory[] = [
 export const EDUCATION_DATA = [
   {
     id: 'e1',
-    year: '2023 - Present',
+    year: '2023 - 2027',
     degree: { [Language.EN]: 'Student of Software Technology', [Language.VI]: 'Sinh viên Công nghệ Phần mềm' },
     school: { [Language.EN]: 'Ho Chi Minh City University of Industry And Trade', [Language.VI]: 'Trường Đại học Công Thương TP.HCM' },
-    location: 'Ho Chi Minh City, Vietnam'
+    location: { [Language.EN]: 'Ho Chi Minh City, Vietnam', [Language.VI]: 'TP.HCM, Việt Nam' },
   }
 ];
 
 export const BIO = {
-  [Language.EN]: "I'm Zero, a Software Developer passionate about crafting immersive digital experiences. Work and study in Ho Chi Minh City, I blend technical precision with artistic motion to build the future of the web.",
-  [Language.VI]: "Tôi là Zero, một Lập Trình Viên Phần Mềm với niềm đam mê tạo ra các trải nghiệm kỹ thuật số sống động. Học và làm việc tại TP.HCM, tôi kết hợp sự chính xác về kỹ thuật với nghệ thuật chuyển động để xây dựng tương lai của web."
+  [Language.EN]: "I'm Nguyen Thang, a Software Developer with a passion for creating useful products for users. Studying and working in Ho Chi Minh City, I aspire to develop my skills and experience in the future.",
+  [Language.VI]: "Tôi là Nguyễn Thắng, một Lập Trình Viên Phần Mềm với niềm đam mê tạo ra các sản phẩm hữu ích cho người dùng. Học và làm việc tại TP.HCM, tôi mong muốn phát triển kỹ năng và kinh nghiệm trong tương lai"
 };
 
 export const NAME = {

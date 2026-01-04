@@ -17,7 +17,7 @@ interface LangContextType {
   lang: Language;
   toggleLang: () => void;
 }
-const LangContext = createContext<LangContextType>({ lang: Language.EN, toggleLang: () => {} });
+const LangContext = createContext<LangContextType>({ lang: Language.EN, toggleLang: () => { } });
 const useLang = () => useContext(LangContext);
 
 // --- Layout Components ---
@@ -34,19 +34,19 @@ const NavBar: React.FC<{ activeSection: string; onNavigate: (section: string) =>
   return (
     <>
       {/* Desktop Nav */}
-      <nav 
+      <nav
         className="fixed top-0 left-0 h-screen w-24 hidden md:flex flex-col items-center justify-between py-8 bg-dark-900/80 backdrop-blur-md border-r border-dark-700 z-50"
         style={{ position: 'fixed' }}
       >
         <div className="text-brand-600 font-bold text-2xl tracking-tighter">ZERO</div>
-        
+
         <div className="flex flex-col gap-8">
           {NAV_ITEMS.map((item) => {
             const isActive = activeSection === item.key;
             const Icon = item.icon;
             return (
-              <button 
-                key={item.key} 
+              <button
+                key={item.key}
                 onClick={() => scrollToSection(item.key)}
                 className={clsx(
                   "p-3 rounded-xl transition-all duration-300 relative group",
@@ -62,7 +62,7 @@ const NavBar: React.FC<{ activeSection: string; onNavigate: (section: string) =>
           })}
         </div>
 
-        <button 
+        <button
           onClick={toggleLang}
           className="flex flex-col items-center gap-1 text-xs font-mono text-gray-400 hover:text-brand-500 transition-colors"
         >
@@ -72,7 +72,7 @@ const NavBar: React.FC<{ activeSection: string; onNavigate: (section: string) =>
       </nav>
 
       {/* Mobile Header */}
-      <nav 
+      <nav
         className="fixed top-0 left-0 w-full h-16 md:hidden flex items-center justify-between px-6 bg-dark-900/90 backdrop-blur-md border-b border-dark-700 z-50"
         style={{ position: 'fixed' }}
       >
@@ -85,7 +85,7 @@ const NavBar: React.FC<{ activeSection: string; onNavigate: (section: string) =>
       {/* Mobile Drawer */}
       <AnimatePresence>
         {isOpen && (
-          <motion.div 
+          <motion.div
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
@@ -97,9 +97,9 @@ const NavBar: React.FC<{ activeSection: string; onNavigate: (section: string) =>
               <button onClick={() => setIsOpen(false)}><X className="text-white" /></button>
             </div>
             <div className="flex flex-col gap-6">
-               {NAV_ITEMS.map((item) => (
-                <button 
-                  key={item.key} 
+              {NAV_ITEMS.map((item) => (
+                <button
+                  key={item.key}
                   onClick={() => scrollToSection(item.key)}
                   className={clsx(
                     "text-2xl font-light text-left",
@@ -108,12 +108,12 @@ const NavBar: React.FC<{ activeSection: string; onNavigate: (section: string) =>
                 >
                   {item.label[lang]}
                 </button>
-               ))}
+              ))}
             </div>
             <div className="mt-auto">
-               <button onClick={toggleLang} className="text-xl text-gray-400 border border-gray-700 px-4 py-2 rounded-full w-full flex items-center justify-center gap-2">
-                 <GlobeIcon size={20} /> {lang === Language.EN ? 'VI' : 'EN'}
-               </button>
+              <button onClick={toggleLang} className="text-xl text-gray-400 border border-gray-700 px-4 py-2 rounded-full w-full flex items-center justify-center gap-2">
+                <GlobeIcon size={20} /> {lang === Language.EN ? 'VI' : 'EN'}
+              </button>
             </div>
           </motion.div>
         )}
@@ -122,9 +122,9 @@ const NavBar: React.FC<{ activeSection: string; onNavigate: (section: string) =>
   );
 });
 
-const SectionWrapper: React.FC<{ 
-  children: React.ReactNode; 
-  title?: string; 
+const SectionWrapper: React.FC<{
+  children: React.ReactNode;
+  title?: string;
   id: string;
   showHeader?: boolean;
 }> = ({ children, title, id, showHeader = true }) => (
@@ -150,15 +150,22 @@ const SectionWrapper: React.FC<{
 
 const HomeSection: React.FC = () => {
   const { lang } = useLang();
+
+  // Handler for when globe is fully zoomed out - scroll to next section
+  const handleZoomOut = useCallback(() => {
+    console.log('Earth zoomed out - scrolling to projects section');
+    scrollToSection('project');
+  }, []);
+
   return (
     <section id="home" className="relative w-full h-screen snap-start snap-always">
       <Suspense fallback={null}>
-        <GlobeViz />
+        <GlobeViz onZoomOut={handleZoomOut} />
       </Suspense>
       <div className="absolute inset-0 bg-gradient-to-t from-dark-900 via-transparent to-transparent pointer-events-none" />
       <div className="absolute inset-0 bg-gradient-to-r from-dark-900 via-transparent to-transparent pointer-events-none md:w-1/2" />
-      
-      <motion.div 
+
+      <motion.div
         initial={{ opacity: 0, x: -50 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ delay: 0.5, duration: 0.8, ease: "easeOut" }}
@@ -208,37 +215,37 @@ const ProjectSection: React.FC = memo(() => {
 
 const SkillSection: React.FC = memo(() => {
   const { lang } = useLang();
-  
+
   // Helper function to get skill level display text and color
   const getSkillLevelInfo = (level: string) => {
     const levelMap: Record<string, { text: { en: string; vi: string }; color: string; bg: string }> = {
-      'Beginner': { 
-        text: { en: 'Beginner', vi: 'Mới bắt đầu' }, 
-        color: 'text-gray-400', 
-        bg: 'bg-gray-900/50' 
+      'Beginner': {
+        text: { en: 'Beginner', vi: 'Mới bắt đầu' },
+        color: 'text-gray-400',
+        bg: 'bg-gray-900/50'
       },
-      'Basic': { 
-        text: { en: 'Basic', vi: 'Cơ bản' }, 
-        color: 'text-blue-400', 
-        bg: 'bg-blue-900/30' 
+      'Basic': {
+        text: { en: 'Basic', vi: 'Cơ bản' },
+        color: 'text-blue-400',
+        bg: 'bg-blue-900/30'
       },
-      'Intermediate': { 
-        text: { en: 'Intermediate', vi: 'Trung cấp' }, 
-        color: 'text-yellow-400', 
-        bg: 'bg-yellow-900/30' 
+      'Intermediate': {
+        text: { en: 'Intermediate', vi: 'Trung cấp' },
+        color: 'text-yellow-400',
+        bg: 'bg-yellow-900/30'
       },
-      'Advanced': { 
-        text: { en: 'Advanced', vi: 'Nâng cao' }, 
-        color: 'text-green-400', 
-        bg: 'bg-green-900/30' 
+      'Advanced': {
+        text: { en: 'Advanced', vi: 'Nâng cao' },
+        color: 'text-green-400',
+        bg: 'bg-green-900/30'
       },
-      'Expert': { 
-        text: { en: 'Expert', vi: 'Chuyên gia' }, 
-        color: 'text-brand-400', 
-        bg: 'bg-brand-900/30' 
+      'Expert': {
+        text: { en: 'Expert', vi: 'Chuyên gia' },
+        color: 'text-brand-400',
+        bg: 'bg-brand-900/30'
       }
     };
-    
+
     const info = levelMap[level] || levelMap['Basic'];
     return {
       text: lang === Language.EN ? info.text.en : info.text.vi,
@@ -246,7 +253,7 @@ const SkillSection: React.FC = memo(() => {
       bg: info.bg
     };
   };
-  
+
   return (
     <SectionWrapper id="skill" title={lang === Language.EN ? 'Skills' : 'Kỹ Năng'}>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
@@ -308,7 +315,7 @@ const EducationSection: React.FC = memo(() => {
         {EDUCATION_DATA.map((item) => (
           <div key={item.id} className="bg-dark-800 p-8 rounded-2xl border border-dark-700 relative overflow-hidden">
             <div className="absolute top-0 right-0 p-4 opacity-10">
-               <GraduationCap size={120} />
+              <GraduationCap size={120} />
             </div>
             <span className="inline-block bg-brand-600 text-white text-xs font-bold px-3 py-1 rounded-full mb-4">
               {item.year}
@@ -316,7 +323,7 @@ const EducationSection: React.FC = memo(() => {
             <h3 className="text-3xl font-bold text-white mb-2">{item.school[lang]}</h3>
             <h4 className="text-xl text-brand-400 mb-4">{item.degree[lang]}</h4>
             <p className="text-gray-400 flex items-center gap-2">
-              <span className="w-2 h-2 bg-brand-600 rounded-full" /> {item.location}
+              <span className="w-2 h-2 bg-brand-600 rounded-full" /> {item.location[lang]}
             </p>
           </div>
         ))}
@@ -330,30 +337,30 @@ const AboutSection: React.FC = memo(() => {
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1; // getMonth() returns 0-11, so add 1
   const age = currentYear - 2005;
-  
+
   // Calculate student year based on academic year starting in September
   // Started: September 2023, Ends: June 2027
   // If current month >= 9 (Sep-Dec), we're in the new academic year
   // If current month < 9 (Jan-Aug), we're still in the previous academic year
-  const studentYear = currentMonth >= 9 
+  const studentYear = currentMonth >= 9
     ? currentYear - 2023 + 1  // New academic year (Sep onwards)
     : currentYear - 2023;      // Previous academic year (Jan-Aug)
-  
+
   const [repoCount, setRepoCount] = useState<number>(8);
-  
+
   // Fetch GitHub repos count
   useEffect(() => {
     const fetchRepos = async () => {
       try {
         console.log('Fetching GitHub repos for InfinityZero3000...');
         const response = await fetch('https://api.github.com/users/InfinityZero3000/repos?per_page=100&type=all');
-        
+
         if (!response.ok) {
           throw new Error(`GitHub API error: ${response.status}`);
         }
-        
+
         const data = await response.json();
-        
+
         if (Array.isArray(data)) {
           console.log('GitHub repos fetched successfully:', data.length);
           console.log('Repos:', data.map((r: any) => r.name));
@@ -365,10 +372,10 @@ const AboutSection: React.FC = memo(() => {
         console.error('Failed to fetch GitHub repos:', err);
       }
     };
-    
+
     fetchRepos();
   }, []);
-  
+
   return (
     <SectionWrapper id="about" title={lang === Language.EN ? 'About Me' : 'Về Tôi'}>
       <div className="max-w-6xl mx-auto space-y-12">
@@ -377,9 +384,9 @@ const AboutSection: React.FC = memo(() => {
           <div className="flex-1 space-y-6">
             <div>
               <h2 className="text-4xl font-bold text-white mb-2">{NAME[lang]}</h2>
-              <a 
-                href="https://github.com/InfinityZero3000" 
-                target="_blank" 
+              <a
+                href="https://github.com/InfinityZero3000"
+                target="_blank"
                 rel="noopener noreferrer"
                 className="text-brand-500 text-xl font-mono hover:text-brand-400 transition-colors inline-flex items-center gap-1 group"
               >
@@ -387,7 +394,7 @@ const AboutSection: React.FC = memo(() => {
                 <Github size={18} className="opacity-0 group-hover:opacity-100 transition-opacity" />
               </a>
             </div>
-            
+
             <div className="flex flex-wrap gap-4 text-gray-400">
               <div className="flex items-center gap-2">
                 <Calendar size={18} className="text-brand-500" />
@@ -405,48 +412,48 @@ const AboutSection: React.FC = memo(() => {
 
             <div className="text-lg text-gray-300 leading-relaxed space-y-4">
               <p>
-                {lang === Language.EN 
-                 ? "Hello! I'm Thang, a passionate Software Developer currently pursuing my degree in Software Technology at Ho Chi Minh City University of Industry and Trade. My journey into the world of programming started with a curiosity about how things work behind the scenes, and it has evolved into a deep passion for creating meaningful digital experiences."
-                 : "Xin chào! Tôi là Thắng, một Lập Trình Viên Phần Mềm đầy nhiệt huyết đang theo học ngành Công nghệ Phần mềm tại Trường Đại học Công Thương TP.HCM. Hành trình lập trình của tôi bắt đầu từ sự tò mò về cách mọi thứ hoạt động, và đã phát triển thành niềm đam mê sâu sắc trong việc tạo ra những trải nghiệm kỹ thuật số có ý nghĩa."}
+                {lang === Language.EN
+                  ? "Hello! I'm Thang, a passionate Software Developer currently pursuing my degree in Software Technology at Ho Chi Minh City University of Industry and Trade. My journey into the world of programming started with a curiosity about how things work behind the scenes, and it has evolved into a deep passion for creating meaningful digital experiences."
+                  : "Xin chào! Tôi là Thắng, một Lập Trình Viên Phần Mềm đầy nhiệt huyết đang theo học ngành Công nghệ Phần mềm tại Trường Đại học Công Thương TP.HCM. Hành trình lập trình của tôi bắt đầu từ sự tò mò về cách mọi thứ hoạt động, và đã phát triển thành niềm đam mê sâu sắc trong việc tạo ra những trải nghiệm kỹ thuật số có ý nghĩa."}
               </p>
               <p>
-                {lang === Language.EN 
-                 ? "I specialize in building modern web applications using React and TypeScript, with a strong focus on creating intuitive user interfaces and seamless experiences. From e-commerce platforms to machine learning applications, I love tackling complex problems and turning ideas into reality through clean, efficient code."
-                 : "Tôi chuyên xây dựng các ứng dụng web hiện đại sử dụng React và TypeScript, với trọng tâm vào việc tạo ra giao diện người dùng trực quan và trải nghiệm mượt mà. Từ nền tảng thương mại điện tử đến ứng dụng học máy, tôi yêu thích việc giải quyết các vấn đề phức tạp và biến ý tưởng thành hiện thực thông qua code sạch và hiệu quả."}
+                {lang === Language.EN
+                  ? "I specialize in building modern web applications using React and TypeScript, with a strong focus on creating intuitive user interfaces and seamless experiences. From e-commerce platforms to machine learning applications, I love tackling complex problems and turning ideas into reality through clean, efficient code."
+                  : "Tôi chuyên xây dựng các ứng dụng web hiện đại sử dụng React và TypeScript, với trọng tâm vào việc tạo ra giao diện người dùng trực quan và trải nghiệm mượt mà. Từ nền tảng thương mại điện tử đến ứng dụng học máy, tôi yêu thích việc giải quyết các vấn đề phức tạp và biến ý tưởng thành hiện thực thông qua code sạch và hiệu quả."}
               </p>
               <p>
-                {lang === Language.EN 
-                 ? "Beyond frontend development, I'm deeply interested in AI and machine learning technologies. I've worked on projects ranging from spam email classification systems to customer emotion recognition, always eager to explore the intersection of software engineering and artificial intelligence. My goal is to bridge the gap between innovative technology and practical, user-centered solutions."
-                 : "Ngoài phát triển frontend, tôi rất quan tâm đến công nghệ AI và học máy. Tôi đã làm việc trên các dự án từ hệ thống phân loại email spam đến nhận diện cảm xúc khách hàng, luôn háo hức khám phá sự giao thoa giữa kỹ thuật phần mềm và trí tuệ nhân tạo. Mục tiêu của tôi là kết nối công nghệ đổi mới với các giải pháp thực tế, lấy người dùng làm trung tâm."}
+                {lang === Language.EN
+                  ? "Beyond frontend development, I'm deeply interested in AI and machine learning technologies. I've worked on projects ranging from spam email classification systems to customer emotion recognition, always eager to explore the intersection of software engineering and artificial intelligence. My goal is to bridge the gap between innovative technology and practical, user-centered solutions."
+                  : "Ngoài phát triển frontend, tôi rất quan tâm đến công nghệ AI và học máy. Tôi đã làm việc trên các dự án từ hệ thống phân loại email spam đến nhận diện cảm xúc khách hàng, luôn háo hức khám phá sự giao thoa giữa kỹ thuật phần mềm và trí tuệ nhân tạo. Mục tiêu của tôi là kết nối công nghệ đổi mới với các giải pháp thực tế, lấy người dùng làm trung tâm."}
               </p>
               <p>
-                {lang === Language.EN 
-                 ? "Outside of coding, I'm constantly learning and staying up-to-date with the latest tech trends. Whether it's diving into new frameworks, optimizing performance, or exploring creative ways to enhance user experience, I'm driven by a genuine love for problem-solving and innovation. For me, writing code is more than a job—it's a craft that I'm constantly refining."
-                 : "Ngoài việc lập trình, tôi không ngừng học hỏi và cập nhật các xu hướng công nghệ mới nhất. Dù là tìm hiểu các framework mới, tối ưu hiệu suất, hay khám phá các cách sáng tạo để nâng cao trải nghiệm người dùng, tôi được thúc đẩy bởi tình yêu thực sự với việc giải quyết vấn đề và đổi mới. Với tôi, viết code không chỉ là công việc, đó là một nghệ thuật mà tôi không ngừng trau dồi."}
+                {lang === Language.EN
+                  ? "Outside of coding, I'm constantly learning and staying up-to-date with the latest tech trends. Whether it's diving into new frameworks, optimizing performance, or exploring creative ways to enhance user experience, I'm driven by a genuine love for problem-solving and innovation. For me, writing code is more than a job—it's a craft that I'm constantly refining."
+                  : "Ngoài việc lập trình, tôi không ngừng học hỏi và cập nhật các xu hướng công nghệ mới nhất. Dù là tìm hiểu các framework mới, tối ưu hiệu suất, hay khám phá các cách sáng tạo để nâng cao trải nghiệm người dùng, tôi được thúc đẩy bởi tình yêu thực sự với việc giải quyết vấn đề và đổi mới. Với tôi, viết code không chỉ là công việc, đó là một nghệ thuật mà tôi không ngừng trau dồi."}
               </p>
             </div>
 
             {/* Social Links */}
             <div className="flex flex-wrap gap-4 pt-4">
-              <a 
-                href="https://github.com/InfinityZero3000" 
-                target="_blank" 
+              <a
+                href="https://github.com/InfinityZero3000"
+                target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 px-4 py-2 bg-dark-800 hover:bg-dark-700 text-white rounded-lg transition-colors group"
               >
                 <Github size={20} className="group-hover:text-brand-500 transition-colors" />
                 <span>GitHub</span>
               </a>
-              <a 
-                href="https://www.linkedin.com/in/zero-nguyen/" 
-                target="_blank" 
+              <a
+                href="https://www.linkedin.com/in/zero-nguyen/"
+                target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 px-4 py-2 bg-dark-800 hover:bg-dark-700 text-white rounded-lg transition-colors group"
               >
                 <Linkedin size={20} className="group-hover:text-brand-500 transition-colors" />
                 <span>LinkedIn</span>
               </a>
-              <a 
+              <a
                 href="mailto:nhthang312@gmail.com"
                 className="flex items-center gap-2 px-4 py-2 bg-dark-800 hover:bg-dark-700 text-white rounded-lg transition-colors group"
               >
@@ -465,9 +472,9 @@ const AboutSection: React.FC = memo(() => {
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400">{lang === Language.EN ? 'GitHub Repos' : 'Repo GitHub'}</span>
-                  <a 
-                    href="https://github.com/InfinityZero3000?tab=repositories" 
-                    target="_blank" 
+                  <a
+                    href="https://github.com/InfinityZero3000?tab=repositories"
+                    target="_blank"
                     rel="noopener noreferrer"
                     className="text-2xl font-bold text-white hover:text-brand-500 transition-colors"
                   >
@@ -500,7 +507,7 @@ const AboutSection: React.FC = memo(() => {
 const ResumeSection: React.FC = memo(() => {
   const { lang } = useLang();
   const resumeUrl = import.meta.env.VITE_RESUME_URL || '/NguyenHuuThang_Resume.pdf';
-  
+
   return (
     <SectionWrapper id="resume" title={lang === Language.EN ? 'Resume' : 'Hồ Sơ'}>
       {/* Resume viewer: uses VITE_RESUME_URL from environment */}
@@ -516,8 +523,8 @@ const ResumeSection: React.FC = memo(() => {
                   {lang === Language.EN ? 'My Resume' : 'Bản Hồ Sơ'}
                 </h2>
                 <p className="text-sm text-gray-400 mt-1">
-                  {lang === Language.EN 
-                    ? 'Click on any link in the PDF to interact' 
+                  {lang === Language.EN
+                    ? 'Click on any link in the PDF to interact'
                     : 'Nhấn vào bất kỳ link nào trong PDF để tương tác'}
                 </p>
               </div>
@@ -552,11 +559,11 @@ const ResumeSection: React.FC = memo(() => {
               allow="fullscreen"
             />
           </div>
-          
+
           <div className="mt-4 p-4 bg-dark-800/50 border border-dark-700 rounded-lg">
             <p className="text-sm text-gray-400 text-center">
-              {lang === Language.EN 
-                ? 'Tip: All links in the PDF are fully interactive. Click them to navigate to external resources.' 
+              {lang === Language.EN
+                ? 'Tip: All links in the PDF are fully interactive. Click them to navigate to external resources.'
                 : 'Mẹo: Tất cả các link trong PDF đều có thể tương tác. Nhấn vào để điều hướng đến tài nguyên bên ngoài.'}
             </p>
           </div>
@@ -571,11 +578,11 @@ const ResumeSection: React.FC = memo(() => {
 export default function App() {
   const [lang, setLang] = useState<Language>(Language.EN);
   const [activeSection, setActiveSection] = useState('home');
-  
+
   const toggleLang = useCallback(() => {
     setLang(prev => prev === Language.EN ? Language.VI : Language.EN);
   }, []);
-  
+
   const handleNavigate = useCallback((sectionKey: string) => {
     scrollToSection(sectionKey);
   }, []);
@@ -585,24 +592,24 @@ export default function App() {
     const cleanup = setupScrollObserver(setActiveSection);
     return cleanup;
   }, []);
-  
+
   // Initialize performance monitoring
   useEffect(() => {
     // Log performance metrics on mount
     console.log('[Performance] App initialized');
-    
+
     // Periodic cache cleanup
     const cleanupInterval = setInterval(() => {
       cacheManager.evictOldEntries();
     }, 5 * 60 * 1000); // Every 5 minutes
-    
+
     // Show performance summary in development
     setTimeout(() => {
       const summary = performanceMonitor.getSummary();
       console.log('[Performance Summary]', summary);
       console.log('[Recommendations]', performanceMonitor.getRecommendations());
     }, 3000);
-    
+
     return () => {
       clearInterval(cleanupInterval);
       performanceMonitor.stop();
@@ -616,10 +623,10 @@ export default function App() {
         <Suspense fallback={null}>
           <StarfieldBackground />
         </Suspense>
-        
+
         {/* Fixed Navigation */}
         <NavBar activeSection={activeSection} onNavigate={handleNavigate} />
-        
+
         {/* Scrollable Content with Snap */}
         <main className="snap-y snap-mandatory h-screen overflow-y-scroll scroll-smooth relative z-10">
           <HomeSection />
