@@ -439,8 +439,20 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
       // Track zoom level and trigger onZoomOut when fully zoomed out
       let hasTriggeredZoomOut = false;
       let previousDistance = 0; // Track previous distance to detect zoom direction
+      let isInitialized = false; // Track if we've completed initial setup
+
+      // Initialize previousDistance with current camera distance after a short delay
+      // This prevents false triggers during initial camera animations
+      setTimeout(() => {
+        if (myGlobe && myGlobe.camera()) {
+          previousDistance = myGlobe.camera().position.length();
+          isInitialized = true;
+          console.log('[Zoom Init] Initial distance set:', previousDistance.toFixed(1));
+        }
+      }, 2000); // Wait 2 seconds for initial animations to complete
+
       const checkZoomLevel = debounce(() => {
-        if (!mounted || !myGlobe) return;
+        if (!mounted || !myGlobe || !isInitialized) return; // Skip if not initialized
 
         // Get camera distance from globe center
         const camera = myGlobe.camera();
