@@ -382,6 +382,66 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
       controls.maxDistance = 350; // Allow more zoom out distance for better UX
       controls.enablePan = true;
       controls.panSpeed = 0.5;
+      controls.enableZoom = true; // Enable zoom by default
+
+      // Track if mouse is over the canvas to enable/disable zoom
+      let isMouseOverCanvas = false;
+      
+      canvas.addEventListener('mouseenter', () => {
+        isMouseOverCanvas = true;
+        controls.enableZoom = true;
+      });
+      
+      canvas.addEventListener('mouseleave', () => {
+        isMouseOverCanvas = false;
+        // Disable zoom when mouse leaves to allow page scroll
+        setTimeout(() => {
+          if (!isMouseOverCanvas) {
+            controls.enableZoom = false;
+          }
+        }, 100);
+      });
+
+      // Track zoom level and trigger scroll when at max zoom out
+      let hasTriggeredScroll = false;
+
+      // Enhanced wheel handler to detect scroll at max zoom
+      const handleWheelScroll = (e: WheelEvent) => {
+        if (!myGlobe || !myGlobe.camera()) return;
+        
+        const camera = myGlobe.camera();
+        const distance = camera.position.length();
+        const maxDistance = controls.maxDistance || 350;
+        
+        // If at max zoom out (within 5 units) and scrolling down (positive deltaY)
+        const isAtMaxZoom = distance >= maxDistance - 5;
+        const isScrollingDown = e.deltaY > 0;
+        
+        console.log(`[Scroll Debug] Distance: ${distance.toFixed(1)}, Max: ${maxDistance}, AtMax: ${isAtMaxZoom}, ScrollDown: ${isScrollingDown}`);
+        
+        if (isAtMaxZoom && isScrollingDown && !hasTriggeredScroll && onZoomOut) {
+          hasTriggeredScroll = true;
+          console.log('[Auto Scroll] Triggering scroll to next section');
+          // Trigger scroll to next section
+          setTimeout(() => {
+            if (onZoomOut) {
+              onZoomOut();
+            }
+            // Reset after delay
+            setTimeout(() => {
+              hasTriggeredScroll = false;
+            }, 2000);
+          }, 100);
+        }
+        
+        // Reset flag when zoom back in
+        if (distance < maxDistance - 50) {
+          hasTriggeredScroll = false;
+        }
+      };
+      
+      // Add wheel listener for scroll detection
+      canvas.addEventListener('wheel', handleWheelScroll, { passive: true });
 
       // Reduce update frequency for controls
       controls.update = (() => {
@@ -429,71 +489,37 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
         }, 500);
       };
 
+      // Handle wheel events - allow scroll through when not zooming
+      const onWheel = (e: WheelEvent) => {
+        // If user is holding Ctrl/Cmd (zoom gesture), let Globe handle it
+        if (e.ctrlKey || e.metaKey) {
+          onInteractionStart();
+          return;
+        }
+        
+        // If camera is at max distance and user scrolling down, allow page scroll
+        const camera = myGlobe.camera();
+        if (camera) {
+          const distance = camera.position.length();
+          const isAtMaxDistance = distance >= controls.maxDistance - 10;
+          
+          // If at max zoom out and scrolling away from globe, allow page scroll
+          if (isAtMaxDistance && e.deltaY > 0) {
+            // Don't prevent default - allow page scroll
+            return;
+          }
+        }
+        
+        // Otherwise, mark as interaction for Globe zoom
+        onInteractionStart();
+      };
+
       // Add interaction listeners
       canvas.addEventListener('mousedown', onInteractionStart);
       canvas.addEventListener('touchstart', onInteractionStart);
       canvas.addEventListener('mouseup', onInteractionEnd);
       canvas.addEventListener('touchend', onInteractionEnd);
-      canvas.addEventListener('wheel', onInteractionStart);
-
-      // Track zoom level and trigger onZoomOut when fully zoomed out
-      let hasTriggeredZoomOut = false;
-      let previousDistance = 0; // Track previous distance to detect zoom direction
-      let isInitialized = false; // Track if we've completed initial setup
-
-      // Initialize previousDistance with current camera distance after a short delay
-      // This prevents false triggers during initial camera animations
-      setTimeout(() => {
-        if (myGlobe && myGlobe.camera()) {
-          previousDistance = myGlobe.camera().position.length();
-          isInitialized = true;
-          console.log('[Zoom Init] Initial distance set:', previousDistance.toFixed(1));
-        }
-      }, 2000); // Wait 2 seconds for initial animations to complete
-
-      const checkZoomLevel = debounce(() => {
-        if (!mounted || !myGlobe || !isInitialized) return; // Skip if not initialized
-
-        // Get camera distance from globe center
-        const camera = myGlobe.camera();
-        const controls = myGlobe.controls();
-
-        if (camera && controls) {
-          const distance = camera.position.length();
-          const isZoomingOut = distance > previousDistance; // Check if zooming out (distance increasing)
-
-          // Debug logging
-          if (distance > 240) {
-            console.log(`[Zoom Debug] Distance: ${distance.toFixed(1)}, IsZoomingOut: ${isZoomingOut}, Triggered: ${hasTriggeredZoomOut}`);
-          }
-
-          // If zoomed out beyond threshold (90% of max distance = 270)
-          // and haven't triggered callback yet
-          if (isZoomingOut && distance >= 250 && !hasTriggeredZoomOut && onZoomOut) {
-            hasTriggeredZoomOut = true;
-            // Small delay to ensure smooth transition
-            setTimeout(() => {
-              if (mounted && onZoomOut) {
-                onZoomOut();
-                // Reset flag after 2 seconds to allow re-trigger if user zooms back in and out again
-                setTimeout(() => {
-                  hasTriggeredZoomOut = false;
-                }, 2000);
-              }
-            }, 300);
-          }
-          // Reset flag when zooming back in significantly
-          else if (distance < 180) {
-            hasTriggeredZoomOut = false;
-          }
-
-          // Update previous distance for next comparison
-          previousDistance = distance;
-        }
-      }, 200); // Debounce by 200ms
-
-      // Add zoom change listener
-      controls.addEventListener('change', checkZoomLevel);
+      canvas.addEventListener('wheel', onWheel, { passive: true });
 
 
       // Adaptive FPS based on interaction
@@ -588,6 +614,14 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
         backgroundColor: 'transparent', // No background color
         opacity: isGlobeReady ? 1 : 0.7, // Fade in effect
         transition: 'opacity 0.8s ease-in-out', // Smooth fade transition
+        pointerEvents: 'auto', // Allow interactions with globe
+      }}
+      onWheel={(e) => {
+        // Allow scroll through if not actively zooming with ctrl/cmd
+        if (!e.ctrlKey && !e.metaKey) {
+          // Let the event bubble up for page scroll
+          e.stopPropagation();
+        }
       }}
     />
   );
