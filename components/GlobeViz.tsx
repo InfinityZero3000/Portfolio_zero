@@ -373,12 +373,12 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
 
       // Optimize controls for smooth rotation
       const controls = myGlobe.controls();
-      controls.autoRotate = false; // Disable auto-rotate by default for better performance
-      controls.autoRotateSpeed = 0.3; // Faster rotation when enabled
+      controls.autoRotate = true; // Enable auto-rotate for dynamic effect
+      controls.autoRotateSpeed = 0.5; // Smooth rotation speed
       controls.enableDamping = true;
       controls.dampingFactor = 0.1; // Higher value = less calculations, better performance
       controls.rotateSpeed = 0.6; // Smooth manual rotation
-      controls.minDistance = 101;
+      controls.minDistance = 150; // Prevent zooming too close to Earth surface
       controls.maxDistance = 350; // Allow more zoom out distance for better UX
       controls.enablePan = true;
       controls.panSpeed = 0.5;

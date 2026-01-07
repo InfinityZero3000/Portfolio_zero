@@ -37,6 +37,7 @@ export interface Project {
   description: { [key in Language]: string };
   image: string;
   link?: string;
+  demo?: string;
 }
 
 export enum SkillLevel {

@@ -195,15 +195,44 @@ const ProjectSection: React.FC = memo(() => {
             <div className="aspect-video bg-gray-900 relative overflow-hidden">
               <img src={project.image} alt={project.title} className="object-cover w-full h-full opacity-60 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500" />
             </div>
-            <div className="p-6">
+            <div className="p-6 flex flex-col h-full">
               <h3 className="text-2xl font-bold text-white mb-2">{project.title}</h3>
               <p className="text-gray-400 text-sm mb-4 min-h-[40px]">{project.description[lang]}</p>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 mb-4">
                 {project.tech.map(t => (
                   <span key={t} className="text-xs font-mono text-brand-500 bg-brand-900/20 px-2 py-1 rounded">
                     {t}
                   </span>
                 ))}
+              </div>
+              {/* Action Buttons */}
+              <div className="flex gap-3 mt-auto">
+                {project.link && (
+                  <a
+                    href={project.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 flex items-center justify-center gap-2 bg-dark-700 hover:bg-dark-600 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium"
+                  >
+                    <Github size={16} />
+                    {lang === Language.EN ? 'GitHub' : 'Mã nguồn'}
+                  </a>
+                )}
+                {project.demo && (
+                  <a
+                    href={project.demo}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                      <polyline points="15 3 21 3 21 9"></polyline>
+                      <line x1="10" y1="14" x2="21" y2="3"></line>
+                    </svg>
+                    {lang === Language.EN ? 'Demo' : 'Xem Demo'}
+                  </a>
+                )}
               </div>
             </div>
           </div>
