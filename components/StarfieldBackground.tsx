@@ -12,20 +12,29 @@ const StarfieldBackground: React.FC = () => {
 
     // Set canvas size
     const resizeCanvas = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = document.documentElement.scrollHeight; // Full document height
+      const pixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+
+      canvas.width = Math.floor(viewportWidth * pixelRatio);
+      canvas.height = Math.floor(viewportHeight * pixelRatio);
+      canvas.style.width = `${viewportWidth}px`;
+      canvas.style.height = `${viewportHeight}px`;
+
+      ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
     };
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
 
     // Create stars
     const stars: Array<{ x: number; y: number; radius: number; opacity: number }> = [];
-    const numStars = 200;
+    const isMobile = window.matchMedia('(max-width: 768px)').matches;
+    const numStars = isMobile ? 90 : 150;
 
     for (let i = 0; i < numStars; i++) {
       stars.push({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
+        x: Math.random() * window.innerWidth,
+        y: Math.random() * window.innerHeight,
         radius: Math.random() * 1.5 + 0.5,
         opacity: Math.random() * 0.5 + 0.3,
       });
@@ -45,10 +54,18 @@ const StarfieldBackground: React.FC = () => {
 
     // Twinkle effect
     let frame = 0;
+    let rafId: number | null = null;
+    let isPaused = document.hidden;
     const animate = () => {
+      if (isPaused) {
+        rafId = requestAnimationFrame(animate);
+        return;
+      }
+
       frame++;
       
-      if (frame % 30 === 0) { // Update every 30 frames
+      // Update every ~500ms to reduce background CPU usage.
+      if (frame % 30 === 0) {
         stars.forEach((star) => {
           if (Math.random() > 0.95) {
             star.opacity = Math.random() * 0.5 + 0.3;
@@ -57,14 +74,26 @@ const StarfieldBackground: React.FC = () => {
         drawStars();
       }
       
-      requestAnimationFrame(animate);
+      rafId = requestAnimationFrame(animate);
+    };
+
+    const handleVisibilityChange = () => {
+      isPaused = document.hidden;
+      if (!isPaused) {
+        drawStars();
+      }
     };
 
     drawStars();
-    animate();
+    rafId = requestAnimationFrame(animate);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       window.removeEventListener('resize', resizeCanvas);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+      }
     };
   }, []);
 

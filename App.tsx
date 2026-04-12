@@ -405,7 +405,6 @@ const AboutSection: React.FC = memo(() => {
   useEffect(() => {
     const fetchRepos = async () => {
       try {
-        console.log('Fetching GitHub repos for InfinityZero3000...');
         const response = await fetch('https://api.github.com/users/InfinityZero3000/repos?per_page=100&type=all');
 
         if (!response.ok) {
@@ -415,8 +414,6 @@ const AboutSection: React.FC = memo(() => {
         const data = await response.json();
 
         if (Array.isArray(data)) {
-          console.log('GitHub repos fetched successfully:', data.length);
-          console.log('Repos:', data.map((r: any) => r.name));
           setRepoCount(data.length);
         } else {
           console.error('Invalid GitHub API response:', data);
@@ -648,8 +645,12 @@ export default function App() {
 
   // Initialize performance monitoring
   useEffect(() => {
+    const isDev = import.meta.env.DEV;
+
     // Log performance metrics on mount
-    console.log('[Performance] App initialized');
+    if (isDev) {
+      console.log('[Performance] App initialized');
+    }
 
     // Periodic cache cleanup
     const cleanupInterval = setInterval(() => {
@@ -657,11 +658,13 @@ export default function App() {
     }, 5 * 60 * 1000); // Every 5 minutes
 
     // Show performance summary in development
-    setTimeout(() => {
-      const summary = performanceMonitor.getSummary();
-      console.log('[Performance Summary]', summary);
-      console.log('[Recommendations]', performanceMonitor.getRecommendations());
-    }, 3000);
+    if (isDev) {
+      setTimeout(() => {
+        const summary = performanceMonitor.getSummary();
+        console.log('[Performance Summary]', summary);
+        console.log('[Recommendations]', performanceMonitor.getRecommendations());
+      }, 3000);
+    }
 
     return () => {
       clearInterval(cleanupInterval);

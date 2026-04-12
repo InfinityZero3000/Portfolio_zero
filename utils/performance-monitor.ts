@@ -22,16 +22,28 @@ class PerformanceMonitor {
   private fpsFrames: number[] = [];
   private lastFrameTime = 0;
   private rafId: number | null = null;
+  private visibilityHandler: (() => void) | null = null;
+  private isRunning = false;
 
   constructor() {
-    this.startFPSMonitoring();
+    if (typeof window !== 'undefined') {
+      this.startFPSMonitoring();
+    }
   }
 
   /**
    * Start monitoring FPS
    */
   private startFPSMonitoring(): void {
+    if (this.isRunning) return;
+    this.isRunning = true;
+
     const measureFPS = (timestamp: number) => {
+      if (typeof document !== 'undefined' && document.hidden) {
+        this.rafId = requestAnimationFrame(measureFPS);
+        return;
+      }
+
       if (this.lastFrameTime) {
         const delta = timestamp - this.lastFrameTime;
         const fps = 1000 / delta;
@@ -48,6 +60,15 @@ class PerformanceMonitor {
     };
 
     this.rafId = requestAnimationFrame(measureFPS);
+
+    if (typeof document !== 'undefined' && !this.visibilityHandler) {
+      this.visibilityHandler = () => {
+        if (!document.hidden) {
+          this.lastFrameTime = 0;
+        }
+      };
+      document.addEventListener('visibilitychange', this.visibilityHandler);
+    }
   }
 
   /**
@@ -206,6 +227,11 @@ class PerformanceMonitor {
       cancelAnimationFrame(this.rafId);
       this.rafId = null;
     }
+    if (this.visibilityHandler && typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', this.visibilityHandler);
+      this.visibilityHandler = null;
+    }
+    this.isRunning = false;
   }
 
   /**
@@ -219,13 +245,20 @@ class PerformanceMonitor {
 // Singleton instance
 export const performanceMonitor = new PerformanceMonitor();
 
-// Auto-record metrics every 5 seconds
-setInterval(() => {
-  performanceMonitor.recordMetrics();
-}, 5000);
+const isDev = typeof window !== 'undefined' && (
+  window.location.hostname === 'localhost' ||
+  window.location.hostname === '127.0.0.1'
+);
 
-// Report performance on page unload
-if (typeof window !== 'undefined') {
+// Auto-record metrics every 5 seconds in development only
+if (typeof window !== 'undefined' && isDev) {
+  setInterval(() => {
+    performanceMonitor.recordMetrics();
+  }, 5000);
+}
+
+// Report performance on page unload in development only
+if (typeof window !== 'undefined' && isDev) {
   window.addEventListener('beforeunload', () => {
     const summary = performanceMonitor.getSummary();
     console.log('Performance Summary:', summary);

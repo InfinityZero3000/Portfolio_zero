@@ -7,9 +7,6 @@ import {
   getOptimalRendererSettings,
   optimizeScene
 } from '../utils/texture-optimizer';
-import { cacheManager } from '../utils/cache-manager';
-import { resourceRateLimiter } from '../utils/rate-limiter';
-import { debounce } from '../utils/debounce';
 
 interface GlobeVizProps {
   onGlobeReady?: () => void;
@@ -34,7 +31,6 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const globeRef = useRef<any>(null);
-  const [countries, setCountries] = useState<any>({ features: [] });
   const [sunPos, setSunPos] = useState(getSunPosition(new Date()));
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isGlobeReady, setIsGlobeReady] = useState(false);
@@ -63,51 +59,6 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
     return () => clearInterval(interval);
   }, []);
 
-  // Load country data with caching - deferred to not block initial render
-  useEffect(() => {
-    const controller = new AbortController();
-    const cacheKey = 'geojson_countries';
-
-    const loadCountries = async () => {
-      // Check rate limit
-      if (!resourceRateLimiter.isAllowed()) {
-        console.warn('Rate limit exceeded for resource loading');
-        return;
-      }
-
-      // Try cache first
-      const cached = await cacheManager.get(cacheKey, 'indexedDB');
-      if (cached) {
-        setCountries(cached);
-        return;
-      }
-
-      // Defer network fetch to after initial render
-      requestIdleCallback(() => {
-        fetch('https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson', {
-          signal: controller.signal
-        })
-          .then(res => res.json())
-          .then(async data => {
-            setCountries(data);
-            // Cache for 7 days
-            await cacheManager.set(cacheKey, data, {
-              ttl: 7 * 24 * 60 * 60 * 1000,
-              storage: 'indexedDB'
-            });
-          })
-          .catch(err => {
-            if (err.name !== 'AbortError') {
-              console.error("Failed to load globe data", err);
-            }
-          });
-      });
-    };
-
-    loadCountries();
-    return () => controller.abort();
-  }, []);
-
   // Initialize globe (only once on mount or when size changes)
   useEffect(() => {
     if (!containerRef.current || !width || !height) return;
@@ -124,6 +75,32 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
     }
 
     let mounted = true;
+    const cleanupTimeouts: number[] = [];
+    const cleanupIntervals: number[] = [];
+    const cleanupListeners: Array<() => void> = [];
+    let animationFrameId: number | null = null;
+
+    const registerTimeout = (fn: () => void, delay: number) => {
+      const id = window.setTimeout(fn, delay);
+      cleanupTimeouts.push(id);
+      return id;
+    };
+
+    const registerInterval = (fn: () => void, delay: number) => {
+      const id = window.setInterval(fn, delay);
+      cleanupIntervals.push(id);
+      return id;
+    };
+
+    const addCanvasListener = (
+      target: EventTarget,
+      event: string,
+      handler: EventListenerOrEventListenerObject,
+      options?: AddEventListenerOptions
+    ) => {
+      target.addEventListener(event, handler, options);
+      cleanupListeners.push(() => target.removeEventListener(event, handler, options));
+    };
 
     // Load Globe from CDN with retry mechanism and proper async handling
     const loadGlobe = async () => {
@@ -319,13 +296,13 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
       myGlobe.pointOfView({ lat: 16, lng: 106, altitude: 0.35 }, 0);
 
       // Smooth zoom out animation after a brief delay
-      setTimeout(() => {
+      registerTimeout(() => {
         if (myGlobe && mounted) {
           myGlobe.pointOfView({ lat: 16, lng: 106, altitude: 2.1 }, 1800); // Longer easing-like glide
           setIsGlobeReady(true);
 
           // Add atmospheric glow layer AFTER globe is ready
-          setTimeout(() => {
+          registerTimeout(() => {
             if (!mounted) return;
 
             const atmosphereSegments = deviceCapability.isMobile ? 24 : (deviceCapability.isHighEnd ? 48 : 32);
@@ -358,7 +335,7 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
             // Fade in atmosphere
             atmosphereMaterial.transparent = true;
             let opacity = 0;
-            const fadeIn = setInterval(() => {
+            const fadeIn = registerInterval(() => {
               opacity += 0.05;
               atmosphereMaterial.opacity = Math.min(opacity, 1);
               atmosphereMaterial.needsUpdate = true;
@@ -392,20 +369,23 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
       // Track if mouse is over the canvas to enable/disable zoom
       let isMouseOverCanvas = false;
       
-      canvas.addEventListener('mouseenter', () => {
+      const onMouseEnter = () => {
         isMouseOverCanvas = true;
         controls.enableZoom = true;
-      });
-      
-      canvas.addEventListener('mouseleave', () => {
+      };
+
+      const onMouseLeave = () => {
         isMouseOverCanvas = false;
         // Disable zoom when mouse leaves to allow page scroll
-        setTimeout(() => {
+        registerTimeout(() => {
           if (!isMouseOverCanvas) {
             controls.enableZoom = false;
           }
         }, 100);
-      });
+      };
+
+      addCanvasListener(canvas, 'mouseenter', onMouseEnter);
+      addCanvasListener(canvas, 'mouseleave', onMouseLeave);
 
       // Track zoom level and trigger scroll when at max zoom out
       let hasTriggeredScroll = false;
@@ -422,18 +402,15 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
         const isAtMaxZoom = distance >= maxDistance - 5;
         const isScrollingDown = e.deltaY > 0;
         
-        console.log(`[Scroll Debug] Distance: ${distance.toFixed(1)}, Max: ${maxDistance}, AtMax: ${isAtMaxZoom}, ScrollDown: ${isScrollingDown}`);
-        
         if (isAtMaxZoom && isScrollingDown && !hasTriggeredScroll && onZoomOut) {
           hasTriggeredScroll = true;
-          console.log('[Auto Scroll] Triggering scroll to next section');
           // Trigger scroll to next section
-          setTimeout(() => {
+          registerTimeout(() => {
             if (onZoomOut) {
               onZoomOut();
             }
             // Reset after delay
-            setTimeout(() => {
+            registerTimeout(() => {
               hasTriggeredScroll = false;
             }, 2000);
           }, 100);
@@ -446,7 +423,7 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
       };
       
       // Add wheel listener for scroll detection
-      canvas.addEventListener('wheel', handleWheelScroll, { passive: true });
+      addCanvasListener(canvas, 'wheel', handleWheelScroll, { passive: true });
 
       // Reduce update frequency for controls
       controls.update = (() => {
@@ -479,7 +456,7 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
       // Optimized animation loop with adaptive frame rate
       let lastTime = 0;
       let isUserInteracting = false;
-      let inactivityTimer: NodeJS.Timeout;
+      let inactivityTimer: number | undefined;
 
       // Detect user interaction for adaptive rendering
       const onInteractionStart = () => {
@@ -520,11 +497,11 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
       };
 
       // Add interaction listeners
-      canvas.addEventListener('mousedown', onInteractionStart);
-      canvas.addEventListener('touchstart', onInteractionStart);
-      canvas.addEventListener('mouseup', onInteractionEnd);
-      canvas.addEventListener('touchend', onInteractionEnd);
-      canvas.addEventListener('wheel', onWheel, { passive: true });
+      addCanvasListener(canvas, 'mousedown', onInteractionStart);
+      addCanvasListener(canvas, 'touchstart', onInteractionStart);
+      addCanvasListener(canvas, 'mouseup', onInteractionEnd);
+      addCanvasListener(canvas, 'touchend', onInteractionEnd);
+      addCanvasListener(canvas, 'wheel', onWheel, { passive: true });
 
 
       // Adaptive FPS based on interaction
@@ -540,7 +517,7 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
 
         const deltaTime = currentTime - lastTime;
         if (deltaTime < frameInterval) {
-          requestAnimationFrame(animate);
+          animationFrameId = requestAnimationFrame(animate);
           return;
         }
 
@@ -549,12 +526,12 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
         // Update controls (throttled internally)
         controls.update();
 
-        requestAnimationFrame(animate);
+        animationFrameId = requestAnimationFrame(animate);
       };
-      requestAnimationFrame(animate);
+      animationFrameId = requestAnimationFrame(animate);
 
       // Call onGlobeReady after zoom animation completes
-      setTimeout(() => {
+      registerTimeout(() => {
         if (onGlobeReady && mounted) {
           onGlobeReady();
         }
@@ -570,8 +547,21 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
 
     return () => {
       mounted = false;
+      cleanupTimeouts.forEach(id => clearTimeout(id));
+      cleanupIntervals.forEach(id => clearInterval(id));
+      cleanupListeners.forEach(dispose => dispose());
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+      if (globeRef.current?._destructor) {
+        globeRef.current._destructor();
+      }
+      globeRef.current = null;
+      if (containerRef.current) {
+        containerRef.current.innerHTML = '';
+      }
     };
-  }, [width, height, countries, textureURLs, deviceCapability, rendererSettings, onGlobeReady, onZoomOut]);
+  }, [width, height, textureURLs, deviceCapability, rendererSettings, onGlobeReady, onZoomOut]);
 
   // Update sun light position when sun position changes
   useEffect(() => {
