@@ -315,14 +315,13 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
         }
       });
 
-      // Set initial view focused on Vietnam with zoom out effect
-      // Start zoomed in (altitude 0.5) and animate to normal view (altitude 2)
-      myGlobe.pointOfView({ lat: 16, lng: 106, altitude: 0.5 }, 0);
+      // Set initial view focused on Vietnam with gentle zoom out
+      myGlobe.pointOfView({ lat: 16, lng: 106, altitude: 0.35 }, 0);
 
       // Smooth zoom out animation after a brief delay
       setTimeout(() => {
         if (myGlobe && mounted) {
-          myGlobe.pointOfView({ lat: 16, lng: 106, altitude: 2 }, 1200); // 1.2s animation
+          myGlobe.pointOfView({ lat: 16, lng: 106, altitude: 2.1 }, 1800); // Longer easing-like glide
           setIsGlobeReady(true);
 
           // Add atmospheric glow layer AFTER globe is ready
@@ -374,7 +373,13 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
       // Optimize controls for smooth rotation
       const controls = myGlobe.controls();
       controls.autoRotate = true; // Enable auto-rotate for dynamic effect
-      controls.autoRotateSpeed = 0.5; // Smooth rotation speed
+      controls.autoRotateSpeed = 0.25; // Start slower and ramp up
+            setTimeout(() => {
+              if (controls && mounted) {
+                controls.autoRotateSpeed = 0.55; // Ramp to normal speed after initial appear
+              }
+            }, 1200);
+
       controls.enableDamping = true;
       controls.dampingFactor = 0.1; // Higher value = less calculations, better performance
       controls.rotateSpeed = 0.6; // Smooth manual rotation
@@ -612,8 +617,9 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
         WebkitFontSmoothing: 'antialiased', // Smoother rendering
         background: 'transparent', // Ensure container is transparent
         backgroundColor: 'transparent', // No background color
-        opacity: isGlobeReady ? 1 : 0.7, // Fade in effect
-        transition: 'opacity 0.8s ease-in-out', // Smooth fade transition
+        opacity: isGlobeReady ? 1 : 0, // Fade in effect
+        filter: isGlobeReady ? 'blur(0px) scale(1)' : 'blur(6px) scale(0.985)', // Subtle focus/scale pop
+        transition: 'opacity 1.2s ease, filter 1.4s ease', // Smooth fade + deblur
         pointerEvents: 'auto', // Allow interactions with globe
       }}
       onWheel={(e) => {

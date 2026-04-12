@@ -20,6 +20,22 @@ interface LangContextType {
 const LangContext = createContext<LangContextType>({ lang: Language.EN, toggleLang: () => { } });
 const useLang = () => useContext(LangContext);
 
+const Reveal: React.FC<{ children: React.ReactNode; delay?: number; className?: string }> = ({
+  children,
+  delay = 0,
+  className
+}) => (
+  <motion.div
+    initial={{ opacity: 0, y: 24 }}
+    whileInView={{ opacity: 1, y: 0 }}
+    viewport={{ once: true, amount: 0.2 }}
+    transition={{ duration: 0.6, ease: "easeOut", delay }}
+    className={className}
+  >
+    {children}
+  </motion.div>
+);
+
 // --- Layout Components ---
 
 const NavBar: React.FC<{ activeSection: string; onNavigate: (section: string) => void }> = memo(({ activeSection, onNavigate }) => {
@@ -134,11 +150,13 @@ const SectionWrapper: React.FC<{
   >
     {showHeader && title && (
       <div className="pt-24 pb-12 px-6 md:pl-32 md:pr-12 md:pt-12 max-w-7xl mx-auto">
-        <header className="mb-12 border-b border-gray-800 pb-4">
-          <h1 className="text-4xl md:text-6xl font-bold text-white tracking-tight uppercase">
-            <span className="text-brand-600">/</span> {title}
-          </h1>
-        </header>
+        <Reveal>
+          <header className="mb-12 border-b border-gray-800 pb-4">
+            <h1 className="text-4xl md:text-6xl font-bold text-white tracking-tight uppercase">
+              <span className="text-brand-600">/</span> {title}
+            </h1>
+          </header>
+        </Reveal>
         {children}
       </div>
     )}
@@ -189,53 +207,55 @@ const ProjectSection: React.FC = memo(() => {
   const { lang } = useLang();
   return (
     <SectionWrapper id="project" title={lang === Language.EN ? 'Projects' : 'Dự Án'}>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {PROJECTS.map((project) => (
-          <div key={project.id} className="group relative bg-dark-800 rounded-2xl overflow-hidden border border-dark-700 hover:border-brand-600 transition-colors duration-300">
-            <div className="aspect-video bg-gray-900 relative overflow-hidden">
-              <img src={project.image} alt={project.title} className="object-cover w-full h-full opacity-60 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500" />
-            </div>
-            <div className="p-6 flex flex-col h-full">
-              <h3 className="text-2xl font-bold text-white mb-2">{project.title}</h3>
-              <p className="text-gray-400 text-sm mb-4 min-h-[40px]">{project.description[lang]}</p>
-              <div className="flex flex-wrap gap-2 mb-4">
-                {project.tech.map(t => (
-                  <span key={t} className="text-xs font-mono text-brand-500 bg-brand-900/20 px-2 py-1 rounded">
-                    {t}
-                  </span>
-                ))}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 items-stretch">
+        {PROJECTS.map((project, idx) => (
+          <Reveal key={project.id} delay={idx * 0.08}>
+            <div className="group relative bg-dark-800 rounded-2xl overflow-hidden border border-dark-700 hover:border-brand-600 transition-colors duration-300 h-full flex flex-col">
+              <div className="aspect-video bg-gray-900 relative overflow-hidden">
+                <img src={project.image} alt={project.title} className="object-cover w-full h-full opacity-60 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500" />
               </div>
-              {/* Action Buttons */}
-              <div className="flex gap-3 mt-auto">
-                {project.link && (
-                  <a
-                    href={project.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 flex items-center justify-center gap-2 bg-dark-700 hover:bg-dark-600 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium"
-                  >
-                    <Github size={16} />
-                    {lang === Language.EN ? 'GitHub' : 'Mã nguồn'}
-                  </a>
-                )}
-                {project.demo && (
-                  <a
-                    href={project.demo}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                      <polyline points="15 3 21 3 21 9"></polyline>
-                      <line x1="10" y1="14" x2="21" y2="3"></line>
-                    </svg>
-                    {lang === Language.EN ? 'Demo' : 'Xem Demo'}
-                  </a>
-                )}
+              <div className="p-6 flex flex-col h-full">
+                <h3 className="text-2xl font-bold text-white mb-2">{project.title}</h3>
+                <p className="text-gray-400 text-sm mb-4 min-h-[40px]">{project.description[lang]}</p>
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {project.tech.map(t => (
+                    <span key={t} className="text-xs font-mono text-brand-500 bg-brand-900/20 px-2 py-1 rounded">
+                      {t}
+                    </span>
+                  ))}
+                </div>
+                {/* Action Buttons */}
+                <div className="flex gap-3 mt-auto">
+                  {project.link && (
+                    <a
+                      href={project.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 flex items-center justify-center gap-2 bg-dark-700 hover:bg-dark-600 text-white px-4 h-11 rounded-lg transition-colors text-sm font-medium"
+                    >
+                      <Github size={16} />
+                      {lang === Language.EN ? 'GitHub' : 'Mã nguồn'}
+                    </a>
+                  )}
+                  {project.demo && (
+                    <a
+                      href={project.demo}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 text-white px-4 h-11 rounded-lg transition-colors text-sm font-medium"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                        <polyline points="15 3 21 3 21 9"></polyline>
+                        <line x1="10" y1="14" x2="21" y2="3"></line>
+                      </svg>
+                      {lang === Language.EN ? 'Demo' : 'Xem Demo'}
+                    </a>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
+          </Reveal>
         ))}
       </div>
     </SectionWrapper>
@@ -287,27 +307,29 @@ const SkillSection: React.FC = memo(() => {
     <SectionWrapper id="skill" title={lang === Language.EN ? 'Skills' : 'Kỹ Năng'}>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
         {SKILLS.map((section, idx) => (
-          <div key={idx}>
-            <h3 className="text-2xl font-bold text-brand-500 mb-6 border-l-4 border-brand-600 pl-4">
-              {section.category[lang]}
-            </h3>
-            <div className="flex flex-col gap-3">
-              {section.items.map((skill) => {
-                const levelInfo = getSkillLevelInfo(skill.level);
-                return (
-                  <div key={skill.name} className="flex items-center justify-between gap-3 group bg-dark-800/50 hover:bg-dark-800 p-3 rounded-lg transition-all">
-                    <div className="flex items-center gap-3 flex-1">
-                      <div className="w-2 h-2 bg-gray-700 rounded-full group-hover:bg-brand-500 transition-colors" />
-                      <span className="text-base text-gray-300 group-hover:text-white transition-colors font-medium">{skill.name}</span>
+          <Reveal key={idx} delay={idx * 0.05}>
+            <div>
+              <h3 className="text-2xl font-bold text-brand-500 mb-6 border-l-4 border-brand-600 pl-4">
+                {section.category[lang]}
+              </h3>
+              <div className="flex flex-col gap-3">
+                {section.items.map((skill) => {
+                  const levelInfo = getSkillLevelInfo(skill.level);
+                  return (
+                    <div key={skill.name} className="flex items-center justify-between gap-3 group bg-dark-800/50 hover:bg-dark-800 p-3 rounded-lg transition-all">
+                      <div className="flex items-center gap-3 flex-1">
+                        <div className="w-2 h-2 bg-gray-700 rounded-full group-hover:bg-brand-500 transition-colors" />
+                        <span className="text-base text-gray-300 group-hover:text-white transition-colors font-medium">{skill.name}</span>
+                      </div>
+                      <span className={`text-xs font-semibold px-3 py-1 rounded-full ${levelInfo.bg} ${levelInfo.color} border border-current/20 whitespace-nowrap`}>
+                        {levelInfo.text}
+                      </span>
                     </div>
-                    <span className={`text-xs font-semibold px-3 py-1 rounded-full ${levelInfo.bg} ${levelInfo.color} border border-current/20 whitespace-nowrap`}>
-                      {levelInfo.text}
-                    </span>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          </Reveal>
         ))}
       </div>
     </SectionWrapper>
@@ -341,20 +363,22 @@ const EducationSection: React.FC = memo(() => {
   return (
     <SectionWrapper id="education" title={lang === Language.EN ? 'Education' : 'Học Vấn'}>
       <div className="space-y-8 max-w-3xl">
-        {EDUCATION_DATA.map((item) => (
-          <div key={item.id} className="bg-dark-800 p-8 rounded-2xl border border-dark-700 relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-4 opacity-10">
-              <GraduationCap size={120} />
+        {EDUCATION_DATA.map((item, idx) => (
+          <Reveal key={item.id} delay={idx * 0.08}>
+            <div className="bg-dark-800 p-8 rounded-2xl border border-dark-700 relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-4 opacity-10">
+                <GraduationCap size={120} />
+              </div>
+              <span className="inline-block bg-brand-600 text-white text-xs font-bold px-3 py-1 rounded-full mb-4">
+                {item.year}
+              </span>
+              <h3 className="text-3xl font-bold text-white mb-2">{item.school[lang]}</h3>
+              <h4 className="text-xl text-brand-400 mb-4">{item.degree[lang]}</h4>
+              <p className="text-gray-400 flex items-center gap-2">
+                <span className="w-2 h-2 bg-brand-600 rounded-full" /> {item.location[lang]}
+              </p>
             </div>
-            <span className="inline-block bg-brand-600 text-white text-xs font-bold px-3 py-1 rounded-full mb-4">
-              {item.year}
-            </span>
-            <h3 className="text-3xl font-bold text-white mb-2">{item.school[lang]}</h3>
-            <h4 className="text-xl text-brand-400 mb-4">{item.degree[lang]}</h4>
-            <p className="text-gray-400 flex items-center gap-2">
-              <span className="w-2 h-2 bg-brand-600 rounded-full" /> {item.location[lang]}
-            </p>
-          </div>
+          </Reveal>
         ))}
       </div>
     </SectionWrapper>
@@ -407,7 +431,7 @@ const AboutSection: React.FC = memo(() => {
 
   return (
     <SectionWrapper id="about" title={lang === Language.EN ? 'About Me' : 'Về Tôi'}>
-      <div className="max-w-6xl mx-auto space-y-12">
+      <Reveal className="max-w-6xl mx-auto space-y-12">
         {/* Profile Header */}
         <div className="flex flex-col lg:flex-row gap-8 items-start">
           <div className="flex-1 space-y-6">
@@ -528,7 +552,7 @@ const AboutSection: React.FC = memo(() => {
             </div>
           </div>
         </div>
-      </div>
+      </Reveal>
     </SectionWrapper>
   );
 });
@@ -540,7 +564,7 @@ const ResumeSection: React.FC = memo(() => {
   return (
     <SectionWrapper id="resume" title={lang === Language.EN ? 'Resume' : 'Hồ Sơ'}>
       {/* Resume viewer: uses VITE_RESUME_URL from environment */}
-      <div className="flex flex-col items-center justify-center space-y-6">
+      <Reveal className="flex flex-col items-center justify-center space-y-6">
         <div className="w-full max-w-5xl">
           <div className="mb-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
@@ -597,7 +621,7 @@ const ResumeSection: React.FC = memo(() => {
             </p>
           </div>
         </div>
-      </div>
+      </Reveal>
     </SectionWrapper>
   );
 });
@@ -657,7 +681,7 @@ export default function App() {
         <NavBar activeSection={activeSection} onNavigate={handleNavigate} />
 
         {/* Scrollable Content with Snap */}
-        <main className="snap-y snap-mandatory h-screen overflow-y-scroll scroll-smooth relative z-10">
+        <main className="snap-y snap-proximity h-screen overflow-y-scroll scroll-smooth relative z-10">
           <HomeSection />
           <ProjectSection />
           <AboutSection />
