@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: 'class',
   content: [
     "./index.html",
     "./*.{js,ts,jsx,tsx}",
@@ -26,8 +27,9 @@ export default {
         }
       },
       fontFamily: {
-        sans: ['Inter', 'sans-serif'],
+        sans: ['Plus Jakarta Sans', 'sans-serif'],
         mono: ['JetBrains Mono', 'monospace'],
+        display: ['Anton', 'sans-serif'],
       },
       animation: {
         'spin-slow': 'spin 20s linear infinite',

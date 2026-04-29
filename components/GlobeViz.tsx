@@ -7,6 +7,10 @@ import {
   getOptimalRendererSettings,
   optimizeScene
 } from '../utils/texture-optimizer';
+import { useTheme } from '../contexts/ThemeContext';
+
+// Sun texture - NASA Solar Dynamics Observatory image (public domain)
+const SUN_TEXTURE_URL = 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b4/The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg/512px-The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg';
 
 interface GlobeVizProps {
   onGlobeReady?: () => void;
@@ -34,6 +38,8 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
   const [sunPos, setSunPos] = useState(getSunPosition(new Date()));
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isGlobeReady, setIsGlobeReady] = useState(false);
+  const { theme } = useTheme();
+  const themeRef = useRef(theme);
   const { width, height } = useResizeDetector({
     targetRef: containerRef,
     refreshMode: 'debounce',
@@ -46,6 +52,25 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
   const deviceCapability = useMemo(() => detectDeviceCapability(), []);
   const textureURLs = useMemo(() => getOptimalTextureURLs(deviceCapability), [deviceCapability]);
   const rendererSettings = useMemo(() => getOptimalRendererSettings(deviceCapability), [deviceCapability]);
+
+  // Update sun position every minute
+  useEffect(() => {
+    themeRef.current = theme;
+    // Swap textures live when theme changes
+    if (globeRef.current) {
+      if (theme === 'light') {
+        globeRef.current.globeImageUrl(SUN_TEXTURE_URL);
+        globeRef.current.backgroundImageUrl('');
+        try { globeRef.current.atmosphereColor('rgba(255,160,60,0.5)'); } catch (_) {}
+        try { globeRef.current.atmosphereAltitude(0.15); } catch (_) {}
+      } else {
+        globeRef.current.globeImageUrl(textureURLs.globe);
+        globeRef.current.backgroundImageUrl(textureURLs.background || '');
+        try { globeRef.current.atmosphereColor('rgba(0,0,0,0)'); } catch (_) {}
+        try { globeRef.current.atmosphereAltitude(0); } catch (_) {}
+      }
+    }
+  }, [theme, textureURLs]);
 
   // Update sun position every minute
   useEffect(() => {
@@ -351,7 +376,7 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
       const controls = myGlobe.controls();
       controls.autoRotate = true; // Enable auto-rotate for dynamic effect
       controls.autoRotateSpeed = 0.25; // Start slower and ramp up
-            setTimeout(() => {
+            registerTimeout(() => {
               if (controls && mounted) {
                 controls.autoRotateSpeed = 0.55; // Ramp to normal speed after initial appear
               }
@@ -364,24 +389,49 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
       controls.maxDistance = 350; // Allow more zoom out distance for better UX
       controls.enablePan = true;
       controls.panSpeed = 0.5;
-      controls.enableZoom = true; // Enable zoom by default
+      controls.enableZoom = false; // Disabled by default so wheel events reach Lenis for page scroll
+
+      // Capture-phase interceptor: fires BEFORE OrbitControls' bubble listener on the canvas.
+      // Globe.gl's bundled Three.js may call preventDefault()/stopPropagation() unconditionally
+      // in its wheel handler, which would swallow all scroll events even when enableZoom=false.
+      // By stopping propagation here in the capture phase we prevent that, then forward the
+      // delta to Lenis so the page still scrolls smoothly.
+      const interceptWheel = (e: WheelEvent) => {
+        if (!controls.enableZoom) {
+          e.stopImmediatePropagation(); // Block OrbitControls from seeing this event
+          const lenis = (window as any).__lenis;
+          if (lenis) {
+            // Accumulate scroll by targeting current position + delta
+            lenis.scrollTo((lenis.targetScroll ?? window.scrollY) + e.deltaY, {
+              duration: 1.0,
+              easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+            });
+          }
+        }
+      };
+      if (containerRef.current) {
+        containerRef.current.addEventListener('wheel', interceptWheel, { capture: true, passive: false });
+        cleanupListeners.push(() =>
+          containerRef.current?.removeEventListener('wheel', interceptWheel, { capture: true } as EventListenerOptions)
+        );
+      }
 
       // Track if mouse is over the canvas to enable/disable zoom
       let isMouseOverCanvas = false;
       
       const onMouseEnter = () => {
         isMouseOverCanvas = true;
-        controls.enableZoom = true;
+        controls.enableZoom = true; // Allow zoom when hovering over globe
       };
 
       const onMouseLeave = () => {
         isMouseOverCanvas = false;
-        // Disable zoom when mouse leaves to allow page scroll
+        // Immediately disable zoom so wheel events pass through to Lenis (page scroll)
         registerTimeout(() => {
           if (!isMouseOverCanvas) {
             controls.enableZoom = false;
           }
-        }, 100);
+        }, 50);
       };
 
       addCanvasListener(canvas, 'mouseenter', onMouseEnter);
@@ -404,15 +454,9 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
         
         if (isAtMaxZoom && isScrollingDown && !hasTriggeredScroll && onZoomOut) {
           hasTriggeredScroll = true;
-          // Trigger scroll to next section
           registerTimeout(() => {
-            if (onZoomOut) {
-              onZoomOut();
-            }
-            // Reset after delay
-            registerTimeout(() => {
-              hasTriggeredScroll = false;
-            }, 2000);
+            if (onZoomOut) onZoomOut();
+            registerTimeout(() => { hasTriggeredScroll = false; }, 2000);
           }, 100);
         }
         
@@ -422,7 +466,7 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
         }
       };
       
-      // Add wheel listener for scroll detection
+      // Add wheel listener for scroll detection (passive so it doesn't block Lenis)
       addCanvasListener(canvas, 'wheel', handleWheelScroll, { passive: true });
 
       // Reduce update frequency for controls
@@ -612,13 +656,7 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
         transition: 'opacity 1.2s ease, filter 1.4s ease', // Smooth fade + deblur
         pointerEvents: 'auto', // Allow interactions with globe
       }}
-      onWheel={(e) => {
-        // Allow scroll through if not actively zooming with ctrl/cmd
-        if (!e.ctrlKey && !e.metaKey) {
-          // Let the event bubble up for page scroll
-          e.stopPropagation();
-        }
-      }}
+
     />
   );
 };

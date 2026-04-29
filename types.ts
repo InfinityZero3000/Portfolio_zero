@@ -11,7 +11,8 @@ export enum RoutePath {
   ACHIEVEMENTS = '/achievements',
   EDUCATION = '/education',
   ABOUT = '/about',
-  RESUME = '/resume'
+  RESUME = '/resume',
+  GITHUB = '/github'
 }
 
 export interface NavItem {

@@ -21,7 +21,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     
     <!-- Content Security Policy - Allow unsafe-eval for Globe.gl/Three.js -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' https: data:; connect-src 'self' https://unpkg.com https://raw.githubusercontent.com https://api.github.com https://fonts.googleapis.com https://fonts.gstatic.com;" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' https: data:; connect-src 'self' https://unpkg.com https://raw.githubusercontent.com https://api.github.com https://fonts.googleapis.com https://fonts.gstatic.com; frame-src 'self' blob: https://drive.google.com; object-src 'self' blob:;" />
     
     <title>Zero | Portfolio</title>
     
@@ -41,17 +41,17 @@
     <!-- Globe textures will be loaded by the component with proper caching -->
     
     <!-- Optimized font loading - use font-display: swap for faster initial render -->
-    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet"></noscript>
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Anton&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Anton&display=swap" rel="stylesheet"></noscript>
     
     <!-- Inline critical font weights to reduce requests -->
     <style>
       @font-face {
-        font-family: 'Inter';
+        font-family: 'Plus Jakarta Sans';
         font-style: normal;
         font-weight: 400;
         font-display: swap;
-        src: local('Inter Regular'), local('Inter-Regular');
+        src: local('Plus Jakarta Sans Regular'), local('PlusJakartaSans-Regular');
       }
     </style>
     
@@ -80,7 +80,7 @@
         padding: 0;
         width: 100%;
         height: 100%;
-        overflow-x: hidden;
+        overflow-x: clip;
         background-color: #111827;
         color: #ffffff;
       }

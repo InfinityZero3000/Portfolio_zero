@@ -6,13 +6,15 @@ import {
   Award,
   GraduationCap,
   User,
-  FileText
+  FileText,
+  Github
 } from 'lucide-react';
 
 export const NAV_ITEMS: (NavItem & { icon: any })[] = [
   { key: 'home', path: RoutePath.HOME, label: { [Language.EN]: 'Home', [Language.VI]: 'Trang Chủ' }, icon: Home },
-  { key: 'project', path: RoutePath.PROJECT, label: { [Language.EN]: 'Projects', [Language.VI]: 'Dự Án' }, icon: Briefcase },
   { key: 'about', path: RoutePath.ABOUT, label: { [Language.EN]: 'About', [Language.VI]: 'Giới Thiệu' }, icon: User },
+  { key: 'project', path: RoutePath.PROJECT, label: { [Language.EN]: 'Projects', [Language.VI]: 'Dự Án' }, icon: Briefcase },
+  { key: 'github', path: RoutePath.GITHUB, label: { [Language.EN]: 'Repository', [Language.VI]: 'Kho Lưu Trữ' }, icon: Github },
   { key: 'resume', path: RoutePath.RESUME, label: { [Language.EN]: 'Resume', [Language.VI]: 'Hồ Sơ' }, icon: FileText },
   { key: 'skill', path: RoutePath.SKILL, label: { [Language.EN]: 'Skills', [Language.VI]: 'Kỹ Năng' }, icon: Cpu },
   // { key: 'achievements', path: RoutePath.ACHIEVEMENTS, label: { [Language.EN]: 'Achievements', [Language.VI]: 'Thành Tựu' }, icon: Award },
@@ -101,6 +103,42 @@ export const PROJECTS: Project[] = [
     image: '/image-project/john-henry.png',
     link: 'https://github.com/InfinityZero3000/John-Henry-Fashion',
     demo: 'https://johnhenry-web.onrender.com/'
+  },
+  {
+    id: '8',
+    title: 'LexiLingo — Admin Dashboard',
+    tech: ['Flutter', 'FastAPI', 'PostgreSQL', 'MongoDB', 'LangGraph', 'Microservices'],
+    description: {
+      [Language.EN]: 'Admin dashboard for LexiLingo — manage users, content, and AI conversation flows across a microservice architecture.',
+      [Language.VI]: 'Trang quản trị LexiLingo — quản lý người dùng, nội dung và luồng hội thoại AI trên kiến trúc microservice.'
+    },
+    image: '/image-project/lexilingo-admin.png',
+    link: 'https://github.com/InfinityZero3000/LexiLingo',
+    demo: 'https://admin.lexilingo.me/'
+  },
+  {
+    id: '9',
+    title: 'LexiLingo — Mobile App',
+    tech: ['Flutter', 'FastAPI', 'PostgreSQL', 'MongoDB', 'LangGraph', 'Microservices'],
+    description: {
+      [Language.EN]: 'AI-powered language learning mobile app with LangGraph-driven conversation flows, personalized lessons, and cross-platform support.',
+      [Language.VI]: 'Ứng dụng học ngôn ngữ di động với AI, luồng hội thoại LangGraph, bài học cá nhân hóa và hỗ trợ đa nền tảng.'
+    },
+    image: '/image-project/lexilingo-mobile.png',
+    link: 'https://github.com/InfinityZero3000/LexiLingo',
+    demo: 'https://lexilingo.me'
+  },
+  {
+    id: '10',
+    title: 'ViRES — Hotel Review ABSA',
+    tech: ['Python', 'NLP', 'ABSA', 'React', 'FastAPI', 'Vercel'],
+    description: {
+      [Language.EN]: 'Aspect-Based Sentiment Analysis system for Vietnamese hotel reviews, extracting fine-grained opinions on service, location, price, and amenities.',
+      [Language.VI]: 'Hệ thống phân tích cảm xúc theo khía cạnh (ABSA) cho đánh giá khách sạn tiếng Việt, trích xuất ý kiến chi tiết về dịch vụ, vị trí, giá cả và tiện nghi.'
+    },
+    image: '/image-project/Vires-HotelABSA.png',
+    link: 'https://github.com/InfinityZero3000/ViRES-HotelABSA-2026',
+    demo: 'https://huit-vires-hotelabsa2026.vercel.app/'
   }
 ];
 

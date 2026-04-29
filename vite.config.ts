@@ -1,6 +1,67 @@
 import path from 'path';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+import type { Plugin } from 'vite';
+import type { IncomingMessage, ServerResponse } from 'http';
+
+// Dev plugin: execute /api/pinned-repos handler directly (mirrors Vercel serverless in dev)
+function vercelApiDevPlugin(): Plugin {
+  return {
+    name: 'vercel-api-dev',
+    apply: 'serve',
+    configureServer(server) {
+      server.middlewares.use(async (req: IncomingMessage, res: ServerResponse, next: () => void) => {
+        if (req.url !== '/api/pinned-repos') return next();
+
+        // Load env so GITHUB_TOKEN is available
+        const env = loadEnv('development', process.cwd(), '');
+        const token = process.env.GITHUB_TOKEN ?? env.GITHUB_TOKEN;
+
+        if (!token) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'GITHUB_TOKEN not configured. Add it to .env file as GITHUB_TOKEN=...' }));
+          return;
+        }
+
+        const query = `query {
+          user(login: "InfinityZero3000") {
+            pinnedItems(first: 6, types: [REPOSITORY]) {
+              nodes {
+                ... on Repository {
+                  name description url stargazerCount forkCount
+                  primaryLanguage { name color }
+                  homepageUrl updatedAt isPrivate
+                }
+              }
+            }
+          }
+        }`;
+
+        try {
+          const ghRes = await fetch('https://api.github.com/graphql', {
+            method: 'POST',
+            headers: {
+              'Authorization': `bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ query }),
+          });
+
+          if (!ghRes.ok) throw new Error(`GitHub API ${ghRes.status}`);
+          const data = await ghRes.json();
+          if (data.errors) throw new Error(data.errors[0]?.message ?? 'GraphQL error');
+
+          const repos = data?.data?.user?.pinnedItems?.nodes ?? [];
+          res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' });
+          res.end(JSON.stringify(repos));
+        } catch (err: any) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: err.message ?? 'Failed to fetch pinned repos' }));
+        }
+      });
+    },
+  };
+}
 
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
@@ -9,7 +70,7 @@ export default defineConfig(({ mode }) => {
         port: 3000,
         host: '0.0.0.0',
       },
-      plugins: [react()],
+      plugins: [react(), vercelApiDevPlugin()],
       define: {
         'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
         'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)

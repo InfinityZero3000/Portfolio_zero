@@ -1,16 +1,25 @@
-import React, { useState, createContext, useContext, memo, lazy, Suspense, useEffect, useCallback } from 'react';
+import React, { useState, createContext, useContext, memo, lazy, Suspense, useEffect, useCallback, useRef, startTransition } from 'react';
+import Lenis from 'lenis';
 import { motion, AnimatePresence } from 'framer-motion';
 import { NAV_ITEMS, PROJECTS, SKILLS, /* ACHIEVEMENTS, */ EDUCATION_DATA, BIO, NAME } from './constants';
 import { Language } from './types';
-import { Menu, X, Globe as GlobeIcon, Download, Award, GraduationCap, FileText, Github, Linkedin, Mail, MapPin, Calendar } from 'lucide-react';
+import { Sun, Moon, Download, Award, GraduationCap, FileText, Github, Linkedin, Mail, MapPin, Calendar, Menu, X } from 'lucide-react';
 import clsx from 'clsx';
 import { performanceMonitor } from './utils/performance-monitor';
 import { cacheManager } from './utils/cache-manager';
 import { scrollToSection, setupScrollObserver } from './utils/scroll-utils';
+import { ThemeContext, useTheme, type Theme } from './contexts/ThemeContext';
+
+// Preload SunViz immediately so shaders can be compiled before first theme switch.
+// Firing the import() at module-eval time means the JS chunk is already parsed
+// and the Three.js WebGL context is initialised before the user ever toggles theme.
+const _sunVizPromise = import('./components/SunViz');
 
 // Lazy load components
-const GlobeViz = lazy(() => import('./components/GlobeViz'));
+const GlobeViz  = lazy(() => import('./components/GlobeViz'));
+const SunViz    = lazy(() => _sunVizPromise);   // resolves instantly — already preloaded
 const StarfieldBackground = lazy(() => import('./components/StarfieldBackground'));
+const GithubPinnedRepos   = lazy(() => import('./components/GithubPinnedRepos'));
 
 // --- Context ---
 interface LangContextType {
@@ -40,101 +49,134 @@ const Reveal: React.FC<{ children: React.ReactNode; delay?: number; className?: 
 
 const NavBar: React.FC<{ activeSection: string; onNavigate: (section: string) => void }> = memo(({ activeSection, onNavigate }) => {
   const { lang, toggleLang } = useLang();
-  const [isOpen, setIsOpen] = useState(false);
+  const { theme, toggleTheme } = useTheme();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
-  const scrollToSection = (key: string) => {
+  const handleNavigate = (key: string) => {
     onNavigate(key);
-    setIsOpen(false);
+    setMobileOpen(false);
   };
 
   return (
-    <>
-      {/* Desktop Nav */}
-      <nav
-        className="fixed top-0 left-0 h-screen w-24 hidden md:flex flex-col items-center justify-between py-8 bg-dark-900/80 backdrop-blur-md border-r border-dark-700 z-50"
-        style={{ position: 'fixed' }}
-      >
-        <div className="text-brand-600 font-bold text-2xl tracking-tighter">ZERO</div>
+    <nav
+      className="fixed top-0 left-0 w-full bg-dark-900/85 backdrop-blur-md border-b border-dark-700 z-50"
+      style={{ position: 'fixed' }}
+    >
+      {/* Main bar */}
+      <div className="max-w-7xl mx-auto h-16 flex items-center px-6 md:px-16">
 
-        <div className="flex flex-col gap-8">
-          {NAV_ITEMS.map((item) => {
-            const isActive = activeSection === item.key;
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.key}
-                onClick={() => scrollToSection(item.key)}
-                className={clsx(
-                  "p-3 rounded-xl transition-all duration-300 relative group",
-                  isActive ? "bg-brand-600 text-white shadow-[0_0_15px_rgba(220,38,38,0.5)]" : "text-gray-400 hover:text-white hover:bg-dark-800"
-                )}
-              >
-                <Icon size={24} />
-                <span className="absolute left-14 bg-brand-600 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                  {item.label[lang]}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+      {/* Left: Logo */}
+      <div className="flex items-center flex-shrink-0">
+        <span className="text-brand-600 text-2xl font-extrabold tracking-tight uppercase leading-none">
+          ZERO
+        </span>
+      </div>
 
+      {/* Desktop nav items */}
+      <div className="hidden md:flex items-center gap-1 ml-6">
+        {NAV_ITEMS.map((item) => {
+          const isActive = activeSection === item.key;
+          return (
+            <button
+              key={item.key}
+              onClick={() => onNavigate(item.key)}
+              className={clsx(
+                "px-3 py-1.5 text-sm font-medium transition-all duration-200 relative",
+                isActive
+                  ? "text-brand-600 after:content-[''] after:absolute after:bottom-0 after:left-3 after:right-3 after:h-0.5 after:bg-brand-600 after:rounded-full"
+                  : "text-white/70 hover:text-white hover:bg-white/10 rounded-lg"
+              )}
+            >
+              {item.label[lang]}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Spacer */}
+      <div className="flex-1" />
+
+      {/* Right: Lang + Theme (desktop) */}
+      <div className="hidden md:flex items-center gap-1">
         <button
           onClick={toggleLang}
-          className="flex flex-col items-center gap-1 text-xs font-mono text-gray-400 hover:text-brand-500 transition-colors"
+          className="px-2.5 py-1.5 rounded-lg text-xs font-mono text-white/60 hover:text-white hover:bg-white/10 transition-all"
         >
-          <GlobeIcon size={20} />
           {lang}
         </button>
-      </nav>
-
-      {/* Mobile Header */}
-      <nav
-        className="fixed top-0 left-0 w-full h-16 md:hidden flex items-center justify-between px-6 bg-dark-900/90 backdrop-blur-md border-b border-dark-700 z-50"
-        style={{ position: 'fixed' }}
-      >
-        <div className="text-brand-600 font-bold text-xl">ZERO</div>
-        <button onClick={() => setIsOpen(true)} className="text-white">
-          <Menu />
+        <button
+          onClick={toggleTheme}
+          className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-all"
+          aria-label="Toggle theme"
+        >
+          {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
         </button>
-      </nav>
+      </div>
 
-      {/* Mobile Drawer */}
+      {/* Mobile: theme toggle + hamburger */}
+      <div className="flex md:hidden items-center gap-1">
+        <button
+          onClick={toggleTheme}
+          className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-all"
+          aria-label="Toggle theme"
+        >
+          {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+        </button>
+        <button
+          onClick={() => setMobileOpen(o => !o)}
+          className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-all"
+          aria-label="Toggle menu"
+        >
+          {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+        </button>
+      </div>
+
+      </div>{/* end main bar */}
+
+      {/* Mobile dropdown menu */}
       <AnimatePresence>
-        {isOpen && (
+        {mobileOpen && (
           <motion.div
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            className="fixed inset-0 z-[60] bg-dark-900 flex flex-col p-8 md:hidden"
-            style={{ position: 'fixed' }}
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+            className="overflow-hidden md:hidden border-t border-dark-700 bg-dark-900"
           >
-            <div className="flex justify-between items-center mb-12">
-              <span className="text-brand-600 font-bold text-2xl">MENU</span>
-              <button onClick={() => setIsOpen(false)}><X className="text-white" /></button>
-            </div>
-            <div className="flex flex-col gap-6">
-              {NAV_ITEMS.map((item) => (
+            <div className="px-4 py-3 flex flex-col gap-0.5">
+              {NAV_ITEMS.map((item) => {
+                const isActive = activeSection === item.key;
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.key}
+                    onClick={() => handleNavigate(item.key)}
+                    className={clsx(
+                      "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-left w-full transition-all duration-200",
+                      isActive
+                        ? "text-brand-600 border-l-2 border-brand-600 bg-brand-600/10 pl-3.5"
+                        : "text-white/70 hover:text-white hover:bg-white/10"
+                    )}
+                  >
+                    <Icon size={16} />
+                    {item.label[lang]}
+                  </button>
+                );
+              })}
+              <div className="mt-2 pt-2 border-t border-dark-700 flex items-center justify-between px-4 py-1">
+                <span className="text-white/40 text-xs uppercase tracking-widest">Language</span>
                 <button
-                  key={item.key}
-                  onClick={() => scrollToSection(item.key)}
-                  className={clsx(
-                    "text-2xl font-light text-left",
-                    activeSection === item.key ? "text-brand-500" : "text-gray-300"
-                  )}
+                  onClick={toggleLang}
+                  className="px-2.5 py-1.5 rounded-lg text-xs font-mono text-white/60 hover:text-white hover:bg-white/10 transition-all"
                 >
-                  {item.label[lang]}
+                  {lang}
                 </button>
-              ))}
-            </div>
-            <div className="mt-auto">
-              <button onClick={toggleLang} className="text-xl text-gray-400 border border-gray-700 px-4 py-2 rounded-full w-full flex items-center justify-center gap-2">
-                <GlobeIcon size={20} /> {lang === Language.EN ? 'VI' : 'EN'}
-              </button>
+              </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
-    </>
+    </nav>
   );
 });
 
@@ -146,13 +188,13 @@ const SectionWrapper: React.FC<{
 }> = ({ children, title, id, showHeader = true }) => (
   <section
     id={id}
-    className="min-h-screen w-full snap-start snap-always relative"
+    className="min-h-screen w-full relative"
   >
     {showHeader && title && (
-      <div className="pt-24 pb-12 px-6 md:pl-32 md:pr-12 md:pt-12 max-w-7xl mx-auto">
+      <div className="pt-28 pb-12 px-6 md:px-16 max-w-7xl mx-auto">
         <Reveal>
           <header className="mb-12 border-b border-gray-800 pb-4">
-            <h1 className="text-4xl md:text-6xl font-bold text-white tracking-tight uppercase">
+            <h1 className="text-4xl md:text-6xl font-extrabold text-white tracking-tight uppercase">
               <span className="text-brand-600">/</span> {title}
             </h1>
           </header>
@@ -166,7 +208,7 @@ const SectionWrapper: React.FC<{
 
 // --- Sections ---
 
-const HomeSection: React.FC = () => {
+const HomeSection: React.FC = memo(() => {
   const { lang } = useLang();
 
   // Handler for when globe is fully zoomed out - scroll to next section
@@ -176,23 +218,36 @@ const HomeSection: React.FC = () => {
   }, []);
 
   return (
-    <section id="home" className="relative w-full h-screen snap-start snap-always">
+    <section id="home" className="relative w-full h-screen">
       <Suspense fallback={null}>
-        <GlobeViz onZoomOut={handleZoomOut} />
+        {/* Earth Globe – dark mode */}
+        <div className="viz-globe" style={{ position: 'absolute', inset: 0 }}>
+          <GlobeViz onZoomOut={handleZoomOut} />
+        </div>
+        {/* Sun – light mode */}
+        <div className="viz-sun" style={{ position: 'absolute', inset: 0 }}>
+          <SunViz />
+        </div>
       </Suspense>
-      <div className="absolute inset-0 bg-gradient-to-t from-dark-900 via-transparent to-transparent pointer-events-none" />
-      <div className="absolute inset-0 bg-gradient-to-r from-dark-900 via-transparent to-transparent pointer-events-none md:w-1/2" />
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{ background: 'linear-gradient(to top, var(--page-bg), transparent)' }}
+      />
+      <div
+        className="absolute inset-0 pointer-events-none md:w-1/2"
+        style={{ background: 'linear-gradient(to right, var(--page-bg), transparent)' }}
+      />
 
       <motion.div
         initial={{ opacity: 0, x: -50 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ delay: 0.5, duration: 0.8, ease: "easeOut" }}
-        className="absolute bottom-12 left-6 md:bottom-24 md:left-32 z-10 max-w-2xl pointer-events-none"
+        className="absolute bottom-12 left-6 md:bottom-24 md:left-16 z-10 max-w-2xl pointer-events-none"
       >
         <h2 className="text-brand-500 font-mono text-sm md:text-base mb-2 tracking-widest uppercase">
           {lang === Language.EN ? 'Software Developer' : 'Lập Trình Viên Phần Mềm'}
         </h2>
-        <h1 className="text-5xl md:text-8xl font-bold text-white leading-none mb-6">
+        <h1 className="text-5xl md:text-8xl font-extrabold text-white leading-none mb-6">
           HELLO <br /> WORLD<span className="text-brand-600">.</span>
         </h1>
         <p className="text-gray-400 text-lg md:text-xl font-light leading-relaxed max-w-lg">
@@ -201,62 +256,121 @@ const HomeSection: React.FC = () => {
       </motion.div>
     </section>
   );
-};
+});
 
 const ProjectSection: React.FC = memo(() => {
   const { lang } = useLang();
+  const [expanded, setExpanded] = useState(false);
+
+  const VISIBLE_COUNT = 6; // show 6 cards (3 rows); 3rd row fades out until expanded
+  const visibleProjects = expanded ? PROJECTS : PROJECTS.slice(0, VISIBLE_COUNT);
+
   return (
     <SectionWrapper id="project" title={lang === Language.EN ? 'Projects' : 'Dự Án'}>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 items-stretch">
-        {PROJECTS.map((project, idx) => (
-          <Reveal key={project.id} delay={idx * 0.08}>
-            <div className="group relative bg-dark-800 rounded-2xl overflow-hidden border border-dark-700 hover:border-brand-600 transition-colors duration-300 h-full flex flex-col">
-              <div className="aspect-video bg-gray-900 relative overflow-hidden">
-                <img src={project.image} alt={project.title} className="object-cover w-full h-full opacity-60 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500" />
-              </div>
-              <div className="p-6 flex flex-col h-full">
-                <h3 className="text-2xl font-bold text-white mb-2">{project.title}</h3>
-                <p className="text-gray-400 text-sm mb-4 min-h-[40px]">{project.description[lang]}</p>
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {project.tech.map(t => (
-                    <span key={t} className="text-xs font-mono text-brand-500 bg-brand-900/20 px-2 py-1 rounded">
-                      {t}
-                    </span>
-                  ))}
+      <div className="relative">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-12">
+          {visibleProjects.map((project, idx) => {
+            return (
+              <motion.div
+                key={project.id}
+                initial={{ opacity: 0, y: 60, scale: 0.95 }}
+                whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                viewport={{ once: true, amount: 0.15 }}
+                transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1], delay: idx * 0.07 }}
+              >
+                <div
+                  className="group flex flex-col gap-4 transition-all duration-300"
+                >
+                  {/* Image */}
+                  <div className="relative overflow-hidden rounded-xl bg-dark-800 aspect-video">
+                    <img
+                      src={project.image}
+                      alt={project.title}
+                      className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500"
+                    />
+                    {/* Hover overlay with buttons */}
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-3">
+                      {project.link && (
+                        <a
+                          href={project.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-white/20"
+                        >
+                          <Github size={15} />
+                          GitHub
+                        </a>
+                      )}
+                      {project.demo && (
+                        <a
+                          href={project.demo}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                            <polyline points="15 3 21 3 21 9"></polyline>
+                            <line x1="10" y1="14" x2="21" y2="3"></line>
+                          </svg>
+                          Demo
+                        </a>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Content */}
+                  <div>
+                    <h3 className="text-xl font-extrabold text-white leading-snug mb-2">
+                      {project.title}
+                    </h3>
+                    <p className="text-gray-400 text-sm leading-relaxed mb-3">
+                      {project.description[lang]}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {project.tech.map(t => (
+                        <span key={t} className="text-xs font-mono text-gray-300 bg-dark-800 border border-dark-700 px-2 py-0.5 rounded-md cursor-default transition-all duration-200 hover:text-brand-400 hover:border-brand-600 hover:bg-brand-900/20 hover:-translate-y-0.5">
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-                {/* Action Buttons */}
-                <div className="flex gap-3 mt-auto">
-                  {project.link && (
-                    <a
-                      href={project.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 flex items-center justify-center gap-2 bg-dark-700 hover:bg-dark-600 text-white px-4 h-11 rounded-lg transition-colors text-sm font-medium"
-                    >
-                      <Github size={16} />
-                      {lang === Language.EN ? 'GitHub' : 'Mã nguồn'}
-                    </a>
-                  )}
-                  {project.demo && (
-                    <a
-                      href={project.demo}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 text-white px-4 h-11 rounded-lg transition-colors text-sm font-medium"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                        <polyline points="15 3 21 3 21 9"></polyline>
-                        <line x1="10" y1="14" x2="21" y2="3"></line>
-                      </svg>
-                      {lang === Language.EN ? 'Demo' : 'Xem Demo'}
-                    </a>
-                  )}
-                </div>
-              </div>
+              </motion.div>
+            );
+          })}
+        </div>
+
+        {/* Gradient fade + View More button */}
+        {!expanded && (
+          <div
+            className="absolute bottom-0 left-0 right-0 h-[420px] flex items-end justify-center pb-6 pointer-events-none"
+            style={{ background: 'linear-gradient(to top, var(--page-bg) 30%, transparent)' }}
+          >
+            <div className="pointer-events-auto">
+            <button
+              onClick={() => setExpanded(true)}
+              className="flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white px-6 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 shadow-[0_0_20px_rgba(220,38,38,0.3)] hover:shadow-[0_0_28px_rgba(220,38,38,0.5)]"
+            >
+              {lang === Language.EN ? 'View All Projects' : 'Xem Tất Cả Dự Án'}
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
             </div>
-          </Reveal>
-        ))}
+          </div>
+        )}
+
+        {/* Collapse button when expanded */}
+        {expanded && (
+          <div className="flex justify-center mt-10">
+            <button
+              onClick={() => setExpanded(false)}
+              className="flex items-center gap-2 border border-dark-700 hover:border-brand-600 text-white/60 hover:text-white px-6 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200"
+            >
+              {lang === Language.EN ? 'Show Less' : 'Thu Gọn'}
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+            </button>
+          </div>
+        )}
       </div>
     </SectionWrapper>
   );
@@ -309,7 +423,7 @@ const SkillSection: React.FC = memo(() => {
         {SKILLS.map((section, idx) => (
           <Reveal key={idx} delay={idx * 0.05}>
             <div>
-              <h3 className="text-2xl font-bold text-brand-500 mb-6 border-l-4 border-brand-600 pl-4">
+              <h3 className="text-2xl font-extrabold text-brand-500 mb-6 border-l-4 border-brand-600 pl-4">
                 {section.category[lang]}
               </h3>
               <div className="flex flex-col gap-3">
@@ -358,6 +472,21 @@ const SkillSection: React.FC = memo(() => {
 //   );
 // });
 
+const GithubSection: React.FC = memo(() => {
+  const { lang } = useLang();
+  return (
+    <SectionWrapper id="github" title={lang === Language.EN ? 'Repository' : 'Kho Lưu Trữ'}>
+      <Suspense fallback={
+        <div className="flex items-center justify-center py-20">
+          <div className="w-8 h-8 border-2 border-brand-600 border-t-transparent rounded-full animate-spin" />
+        </div>
+      }>
+        <GithubPinnedRepos lang={lang} />
+      </Suspense>
+    </SectionWrapper>
+  );
+});
+
 const EducationSection: React.FC = memo(() => {
   const { lang } = useLang();
   return (
@@ -372,7 +501,7 @@ const EducationSection: React.FC = memo(() => {
               <span className="inline-block bg-brand-600 text-white text-xs font-bold px-3 py-1 rounded-full mb-4">
                 {item.year}
               </span>
-              <h3 className="text-3xl font-bold text-white mb-2">{item.school[lang]}</h3>
+              <h3 className="text-3xl font-extrabold text-white mb-2">{item.school[lang]}</h3>
               <h4 className="text-xl text-brand-400 mb-4">{item.degree[lang]}</h4>
               <p className="text-gray-400 flex items-center gap-2">
                 <span className="w-2 h-2 bg-brand-600 rounded-full" /> {item.location[lang]}
@@ -433,7 +562,7 @@ const AboutSection: React.FC = memo(() => {
         <div className="flex flex-col lg:flex-row gap-8 items-start">
           <div className="flex-1 space-y-6">
             <div>
-              <h2 className="text-4xl font-bold text-white mb-2">{NAME[lang]}</h2>
+              <h2 className="text-4xl font-extrabold text-white mb-2">{NAME[lang]}</h2>
               <a
                 href="https://github.com/InfinityZero3000"
                 target="_blank"
@@ -516,7 +645,7 @@ const AboutSection: React.FC = memo(() => {
           {/* Stats Card */}
           <div className="lg:w-80 w-full space-y-4">
             <div className="bg-gradient-to-br from-dark-800 to-dark-900 p-6 rounded-2xl border border-dark-700">
-              <h3 className="text-white font-bold mb-4 text-lg">
+              <h3 className="text-white font-extrabold mb-4 text-lg">
                 {lang === Language.EN ? 'Quick Stats' : 'Thống Kê'}
               </h3>
               <div className="space-y-4">
@@ -556,11 +685,50 @@ const AboutSection: React.FC = memo(() => {
 
 const ResumeSection: React.FC = memo(() => {
   const { lang } = useLang();
-  const resumeUrl = import.meta.env.VITE_RESUME_URL || '/NguyenHuuThang_Resume.pdf';
+  const [iframeInteractive, setIframeInteractive] = useState(false);
+  const interactiveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const rawResumeUrl = import.meta.env.VITE_RESUME_URL || '/NguyenHuuThang_Resume.pdf';
+
+  // Always embed local PDF to avoid external URL failures
+  const localPdfUrl = '/NguyenHuuThang_Resume.pdf#toolbar=1&navpanes=1&scrollbar=1';
+
+  // For "Open in New Tab": use Google Drive preview if configured, else local
+  const viewUrl = rawResumeUrl.includes('drive.google.com')
+    ? rawResumeUrl.replace(
+        /drive\.google\.com\/file\/d\/([^/]+)\/(view|edit)(.*)/,
+        'drive.google.com/file/d/$1/preview'
+      )
+    : rawResumeUrl;
+
+  // For download
+  const downloadUrl = rawResumeUrl.includes('drive.google.com')
+    ? rawResumeUrl.replace(/drive\.google\.com\/file\/d\/([^/]+)\/.*/, 'drive.google.com/uc?export=download&id=$1')
+    : rawResumeUrl;
+
+  // Forward wheel events to Lenis so page still scrolls when cursor is over iframe
+  const handleOverlayWheel = useCallback((e: React.WheelEvent) => {
+    const lenis = (window as any).__lenis;
+    if (lenis) {
+      lenis.scrollTo(window.scrollY + e.deltaY * 2, { immediate: false, duration: 0.4 });
+    } else {
+      window.scrollBy({ top: e.deltaY, behavior: 'smooth' });
+    }
+  }, []);
+
+  const handleOverlayClick = useCallback(() => {
+    setIframeInteractive(true);
+    if (interactiveTimerRef.current) clearTimeout(interactiveTimerRef.current);
+    interactiveTimerRef.current = setTimeout(() => setIframeInteractive(false), 8000);
+  }, []);
+
+  const handleContainerMouseLeave = useCallback(() => {
+    if (interactiveTimerRef.current) clearTimeout(interactiveTimerRef.current);
+    setIframeInteractive(false);
+  }, []);
 
   return (
     <SectionWrapper id="resume" title={lang === Language.EN ? 'Resume' : 'Hồ Sơ'}>
-      {/* Resume viewer: uses VITE_RESUME_URL from environment */}
       <Reveal className="flex flex-col items-center justify-center space-y-6">
         <div className="w-full max-w-5xl">
           <div className="mb-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -569,27 +737,29 @@ const ResumeSection: React.FC = memo(() => {
                 <FileText size={32} />
               </div>
               <div>
-                <h2 className="text-2xl text-white">
+                <h2 className="text-2xl font-extrabold text-white">
                   {lang === Language.EN ? 'My Resume' : 'Bản Hồ Sơ'}
                 </h2>
                 <p className="text-sm text-gray-400 mt-1">
                   {lang === Language.EN
-                    ? 'Click on any link in the PDF to interact'
-                    : 'Nhấn vào bất kỳ link nào trong PDF để tương tác'}
+                    ? 'Click on the PDF to interact with links'
+                    : 'Nhấp vào PDF để tương tác với các liên kết'}
                 </p>
               </div>
             </div>
             <div className="flex gap-3">
               <a
-                href={resumeUrl}
-                download="NguyenHuuThang_Resume.pdf"
+                href={downloadUrl}
+                download={downloadUrl.startsWith('/') ? 'NguyenHuuThang_Resume.pdf' : undefined}
+                target={downloadUrl.startsWith('/') ? undefined : '_blank'}
+                rel="noreferrer"
                 className="inline-flex items-center gap-2 bg-dark-800 hover:bg-dark-700 text-white px-4 py-2 rounded-lg font-medium transition-all border border-dark-700 hover:border-brand-600"
               >
                 <Download size={18} />
                 {lang === Language.EN ? 'Download' : 'Tải về'}
               </a>
               <a
-                href={resumeUrl}
+                href={viewUrl}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg font-medium transition-all shadow-lg hover:shadow-brand-600/50"
@@ -600,21 +770,46 @@ const ResumeSection: React.FC = memo(() => {
             </div>
           </div>
 
-          <div className="bg-dark-800 border border-dark-700 rounded-2xl overflow-hidden shadow-2xl" style={{ minHeight: 600 }}>
+          {/* Iframe container with scroll-trap fix — A4 aspect ratio (210:297), capped to viewport */}
+          <div
+            className="bg-dark-800 border border-dark-700 rounded-2xl overflow-hidden shadow-2xl relative mx-auto"
+            style={{ height: 'calc(100vh - 10rem)', width: '100%' }}
+            onMouseLeave={handleContainerMouseLeave}
+          >
             <iframe
               title="resume-pdf"
-              src={`${resumeUrl}#toolbar=1&navpanes=1&scrollbar=1`}
-              className="w-full h-[80vh]"
-              style={{ border: 'none', minHeight: 600 }}
+              src={localPdfUrl}
+              className="absolute inset-0 w-full h-full"
+              style={{ border: 'none', pointerEvents: iframeInteractive ? 'all' : 'none' }}
               allow="fullscreen"
             />
+            {/* Overlay: intercepts wheel events → forwards to page scroll; click → activates iframe */}
+            {!iframeInteractive && (
+              <div
+                className="absolute inset-0 z-10 flex items-end justify-center pb-4 cursor-pointer"
+                onWheel={handleOverlayWheel}
+                onClick={handleOverlayClick}
+              >
+                <span className="bg-dark-900/80 backdrop-blur-sm text-white/60 text-xs px-3 py-1.5 rounded-full border border-dark-700 pointer-events-none select-none">
+                  {lang === Language.EN ? 'Click to interact with PDF' : 'Nhấp để tương tác với PDF'}
+                </span>
+              </div>
+            )}
+            {iframeInteractive && (
+              <button
+                className="absolute top-2 right-2 z-10 bg-dark-900/80 backdrop-blur-sm text-white/60 hover:text-white text-xs px-3 py-1.5 rounded-full border border-dark-700 transition-colors"
+                onClick={() => setIframeInteractive(false)}
+              >
+                {lang === Language.EN ? '↑ Scroll page' : '↑ Cuộn trang'}
+              </button>
+            )}
           </div>
 
           <div className="mt-4 p-4 bg-dark-800/50 border border-dark-700 rounded-lg">
             <p className="text-sm text-gray-400 text-center">
               {lang === Language.EN
-                ? 'Tip: All links in the PDF are fully interactive. Click them to navigate to external resources.'
-                : 'Mẹo: Tất cả các link trong PDF đều có thể tương tác. Nhấn vào để điều hướng đến tài nguyên bên ngoài.'}
+                ? 'Tip: Click the PDF to interact with links. Click "↑ Scroll page" to return to page scrolling.'
+                : 'Mẹo: Nhấp vào PDF để tương tác. Nhấp "↑ Cuộn trang" để cuộn trang trở lại.'}
             </p>
           </div>
         </div>
@@ -628,6 +823,18 @@ const ResumeSection: React.FC = memo(() => {
 export default function App() {
   const [lang, setLang] = useState<Language>(Language.EN);
   const [activeSection, setActiveSection] = useState('home');
+  const [theme, setTheme] = useState<Theme>('dark');
+
+  const toggleTheme = useCallback(() => {
+    const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', next);
+    startTransition(() => setTheme(next as Theme));
+  }, []);
+
+  // Apply theme to <html> for CSS selector support
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
 
   const toggleLang = useCallback(() => {
     setLang(prev => prev === Language.EN ? Language.VI : Language.EN);
@@ -641,6 +848,31 @@ export default function App() {
   useEffect(() => {
     const cleanup = setupScrollObserver(setActiveSection);
     return cleanup;
+  }, []);
+
+  // Setup Lenis smooth scroll
+  useEffect(() => {
+    const lenis = new Lenis({
+      duration: 1.2,
+      easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      smoothWheel: true,
+    });
+
+    // Expose lenis to scroll-utils via window for nav links
+    (window as any).__lenis = lenis;
+
+    let rafId: number;
+    const raf = (time: number) => {
+      lenis.raf(time);
+      rafId = requestAnimationFrame(raf);
+    };
+    rafId = requestAnimationFrame(raf);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      lenis.destroy();
+      (window as any).__lenis = null;
+    };
   }, []);
 
   // Initialize performance monitoring
@@ -673,8 +905,9 @@ export default function App() {
   }, []);
 
   return (
+    <ThemeContext.Provider value={{ theme, toggleTheme }}>
     <LangContext.Provider value={{ lang, toggleLang }}>
-      <div className="bg-dark-900 text-white font-sans selection:bg-brand-600 selection:text-white">
+      <div className="text-white font-sans selection:bg-brand-600 selection:text-white">
         {/* Global Starfield Background */}
         <Suspense fallback={null}>
           <StarfieldBackground />
@@ -683,16 +916,18 @@ export default function App() {
         {/* Fixed Navigation */}
         <NavBar activeSection={activeSection} onNavigate={handleNavigate} />
 
-        {/* Scrollable Content with Snap */}
-        <main className="snap-y snap-proximity h-screen overflow-y-scroll scroll-smooth relative z-10">
+        {/* Scrollable Content */}
+        <main className="relative z-10">
           <HomeSection />
-          <ProjectSection />
           <AboutSection />
+          <ProjectSection />
+          <GithubSection />
           <ResumeSection />
           <SkillSection />
           <EducationSection />
         </main>
       </div>
     </LangContext.Provider>
+    </ThemeContext.Provider>
   );
 }
