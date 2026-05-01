@@ -67,57 +67,74 @@ const SURFACE_FRAG = `
   varying vec3 vObjPos;
   varying vec3 vMvNormal;
 
-  float fbm2(vec3 p){
-    float v=0.0,a=0.5;
-    for(int i=0;i<2;i++){v+=a*snoise(p);p=p*2.2+vec3(5.2+float(i),1.3,4.7-float(i));a*=0.48;}
-    return v;
-  }
   float fbm3(vec3 p){
     float v=0.0,a=0.5;
-    for(int i=0;i<3;i++){v+=a*snoise(p);p=p*2.2+vec3(5.2+float(i),1.3,4.7-float(i));a*=0.48;}
+    for(int i=0;i<3;i++){v+=a*snoise(p);p=p*2.1+vec3(5.2+float(i),1.3,4.7-float(i));a*=0.50;}
+    return v;
+  }
+  float fbm5(vec3 p){
+    float v=0.0,a=0.5;
+    for(int i=0;i<5;i++){v+=a*snoise(p);p=p*2.1+vec3(5.2+float(i),1.3,4.7-float(i));a*=0.50;}
     return v;
   }
 
   void main(){
-    vec3 p=vObjPos;
-    // Slow domain warp (3× slower than before for calmer surface motion)
-    vec3 q=vec3(
-      fbm2(p*1.3+vec3(uTime*0.018,0.0,0.0)),
-      fbm2(p*1.3+vec3(0.0,uTime*0.014,3.8)),
-      0.0
+    vec3 p = vObjPos;
+
+    // ── Domain-warp turbulence (active fire convection) ──────────────────────
+    vec3 q = vec3(
+      fbm3(p*2.2 + vec3(uTime*0.055,  0.0,        0.0)),
+      fbm3(p*2.2 + vec3(0.0,          uTime*0.048, 3.8)),
+      fbm3(p*2.2 + vec3(1.72,         3.10,        uTime*0.038))
     );
-    float n=fbm3(p*1.9+2.5*q+uTime*0.004);
-    n=clamp(n*0.5+0.5,0.0,1.0);
+    float n = fbm5(p*2.8 + 3.2*q + uTime*0.018);
+    n = n * 0.5 + 0.5;
 
-    // Sunspots drift very slowly
-    vec3 s1=normalize(vec3(sin(uTime*0.012)*0.65,cos(uTime*0.009)*0.50,0.60));
-    vec3 s2=normalize(vec3(cos(uTime*0.016)*0.42,sin(uTime*0.013)*0.72,0.65));
-    vec3 s3=normalize(vec3(sin(uTime*0.014)*0.58,cos(uTime*0.019)*0.35,0.55));
-    float spots=clamp(
-      smoothstep(0.22,0.0,distance(vObjPos,s1))+
-      smoothstep(0.16,0.0,distance(vObjPos,s2))+
-      smoothstep(0.13,0.0,distance(vObjPos,s3)),
-      0.0,1.0);
+    // ── Granulation layer (photosphere convection cells) ─────────────────────
+    // Granules = slightly brighter convective blobs against dark intergranular lanes.
+    // Modulated by base n so they only appear in the hotter mid-tones.
+    float gran = snoise(p * 5.5 + vec3(uTime * 0.032, 0.0, uTime * 0.025));
+    float granMask = smoothstep(0.15, 0.70, n); // only modulate mid-bright areas
+    gran = smoothstep(-0.30, 0.80, gran) * granMask;
+    n = n + gran * 0.18;  // additive — granules only brighten, not desaturate
+    n = clamp(n, 0.0, 1.0);
 
-    // Vivid fire palette: dark crimson → deep orange → bright orange → warm yellow → white-hot
-    vec3 c0=vec3(0.38,0.04,0.00);
-    vec3 c1=vec3(0.92,0.18,0.00);
-    vec3 c2=vec3(1.00,0.45,0.03);
-    vec3 c3=vec3(1.00,0.76,0.12);
-    vec3 c4=vec3(1.00,0.97,0.88);
-    vec3 col=c0;
-    col=mix(col,c1,smoothstep(0.00,0.28,n));
-    col=mix(col,c2,smoothstep(0.25,0.55,n));
-    col=mix(col,c3,smoothstep(0.52,0.78,n));
-    col=mix(col,c4,smoothstep(0.74,1.00,n));
-    col=mix(col,vec3(0.18,0.02,0.00),spots*0.92);
-    float mu=clamp(vMvNormal.z,0.0,1.0);
-    // Quadratic limb darkening (Milne's law: I = 1 - a(1-μ) - b(1-μ²), a≈0.3, b≈0.25)
-    float limb_dark = 1.0 - 0.30*(1.0-mu) - 0.25*(1.0-mu*mu);
+    // ── Sunspots (slowly drifting dark umbra) ────────────────────────────────
+    vec3 s1 = normalize(vec3(sin(uTime*0.012)*0.65, cos(uTime*0.009)*0.50, 0.60));
+    vec3 s2 = normalize(vec3(cos(uTime*0.016)*0.42, sin(uTime*0.013)*0.72, 0.65));
+    float spots = clamp(
+      smoothstep(0.20, 0.0, distance(vObjPos, s1)) +
+      smoothstep(0.14, 0.0, distance(vObjPos, s2)),
+      0.0, 1.0);
+
+    // ── Fire palette: near-black embers → deep crimson → orange → yellow → white-hot
+    // Calibrated against NASA solar photography (SDO/HMI continuum images).
+    vec3 c0 = vec3(0.04, 0.00, 0.00); // embers / intergranular lanes
+    vec3 c1 = vec3(0.70, 0.05, 0.00); // deep crimson
+    vec3 c2 = vec3(1.00, 0.38, 0.02); // orange (most of surface)
+    vec3 c3 = vec3(1.00, 0.70, 0.08); // yellow-orange granule tops
+    vec3 c4 = vec3(1.00, 0.95, 0.75); // white-hot center
+    vec3 col = c0;
+    col = mix(col, c1, smoothstep(0.00, 0.20, n));
+    col = mix(col, c2, smoothstep(0.18, 0.48, n));
+    col = mix(col, c3, smoothstep(0.45, 0.74, n));
+    col = mix(col, c4, smoothstep(0.70, 1.00, n));
+
+    // Apply sunspot darkening
+    col = mix(col, vec3(0.02, 0.00, 0.00), spots * 0.96);
+
+    // ── Milne quadratic limb darkening ──────────────────────────────────────
+    // Physically: I(μ) = 1 - u(1-μ) - v(1-μ²), u+v≈1 (Milne 1921)
+    float mu = clamp(vMvNormal.z, 0.0, 1.0);
+    float limb_dark = 1.0 - 0.38*(1.0-mu) - 0.28*(1.0-mu*mu);
     col *= limb_dark;
-    // Rim emission: hot orange-white chromosphere edge
-    col += vec3(1.0, 0.50, 0.06) * pow(1.0-mu, 5.0) * 1.3;
-    gl_FragColor=vec4(col,1.0);
+
+    // ── Chromosphere rim emission (noisy, flickering) ────────────────────────
+    // Hot plasma at the visible edge of the photosphere.
+    float rimNoise = snoise(vObjPos * 12.0 + vec3(uTime*0.32, 0.0, uTime*0.26)) * 0.5 + 0.5;
+    col += vec3(1.00, 0.62, 0.10) * pow(1.0-mu, 3.5) * (0.9 + rimNoise * 1.2);
+
+    gl_FragColor = vec4(col, 1.0);
   }
 `;
 
@@ -132,9 +149,9 @@ const CORONA_VERT = `
   }
 `;
 
-// CORONA_FRAG: organic flame-tongue corona — sin-based (zero snoise).
-// Each shell has 12 flame tongues with variable width, extent, and flicker.
-// Much more natural-looking than clean geometric streamers.
+// CORONA_FRAG: tight photospheric spicules + plasma prominences.
+// 8 short narrow tongues, ext capped to 0.14 — they hug the solar limb.
+// No tongue escapes more than ~14% of sun radius from the surface.
 const CORONA_FRAG = `
   uniform float uStrength;
   uniform float uFalloff;
@@ -147,49 +164,53 @@ const CORONA_FRAG = `
   void main(){
     float limb  = 1.0 - abs(dot(vNormal, vec3(0.0, 0.0, 1.0)));
     float angle = atan(vObjPos.y, vObjPos.x);
+
+    // Tight base falloff — concentrated right at the solar limb
     float base  = pow(limb, uFalloff) * uStrength;
 
-    // 12 organic flame tongues — variable width, drift, and extent
+    // 8 tight spicule-like jets — very short, very fast
     float flames = 0.0;
-    for (int k = 0; k < 12; k++) {
-      float kf  = float(k);
-      // Very slow angular drift + per-tongue golden-ratio offset
-      float ta  = kf * 0.5236 + uTime * 0.0018 + 0.5 * sin(kf * 1.618 + uTime * 0.004);
-      float da  = mod(angle - ta + 3.14159, 6.28318) - 3.14159;
-      // Width varies per-tongue and breathes slowly
-      float tw  = 0.30 + 0.22 * sin(kf * 2.1 + uTime * 0.006);
-      float aw  = exp(-da * da / (tw * tw));
-      // Radial reach: some tongues extend far, others stay close
-      float ext = 0.55 + 0.45 * sin(kf * 1.3 + uTime * 0.007);
-      // Flame profile: rises from solar edge, peaks at midpoint, fades out
-      float fp  = smoothstep(0.10, 0.5 * ext, limb) * smoothstep(1.0, 0.35 * ext, limb);
-      // Per-tongue flicker
-      float intf = 0.70 + 0.30 * sin(kf * 0.9 + uTime * 0.013);
-      flames += aw * fp * intf;
+    for (int k = 0; k < 8; k++) {
+      float kf    = float(k);
+      float phase = kf * 0.7854 + uTime * 0.025 + 0.60 * sin(kf * 1.618 + uTime * 0.055);
+      float da    = mod(angle - phase + 3.14159, 6.28318) - 3.14159;
+      // Very narrow — spicules are thin bright jets
+      float tw    = 0.10 + 0.06 * sin(kf * 2.3 + uTime * 0.08);
+      float aw    = exp(-da * da / (tw * tw));
+      // TIGHT radial reach: 0.04 – 0.14 above solar surface (no off-screen bleed)
+      float ext   = 0.04 + 0.10 * abs(sin(kf * 1.5 + uTime * 0.065 + sin(uTime * 0.030 + kf)*1.8));
+      // Flame tip profile: bright at base, tapers sharply to zero at tip
+      float base_fade = smoothstep(0.0, 0.06, limb);
+      float tip_fade  = pow(max(0.0, 1.0 - limb / max(0.005, ext)), 3.5);
+      float fp = base_fade * tip_fade;
+      // Rapid instability flicker
+      float flick = 0.30 + 0.70 * abs(sin(kf * 0.91 + uTime * 0.22 + sin(uTime * 0.12 + kf * 0.7) * 2.5));
+      flames += aw * fp * flick;
     }
-    flames *= 0.72;
+    flames *= 1.10;
 
     float g = base + flames;
 
-    // Inner shell: plasma prominence arches (close to solar surface)
+    // Plasma prominences — only on the innermost chromosphere shell
     if (uIsInner > 0.5) {
       float proms = 0.0;
-      for (int k = 0; k < 6; k++) {
+      for (int k = 0; k < 5; k++) {
         float kf = float(k);
-        float pa = kf * 1.0472 + uTime * 0.006;
+        float pa = kf * 1.2566 + uTime * 0.022;
         float da = mod(angle - pa + 3.14159, 6.28318) - 3.14159;
-        float pn = 0.55 + 0.45 * sin(kf * 2.618 + uTime * 0.025);
-        float pw = 0.18 + 0.10 * sin(kf * 1.4 + uTime * 0.008);
-        proms += smoothstep(pw, 0.0, abs(da)) * pow(limb, 4.5) * (1.6 + pn);
+        float pn = 0.50 + 0.50 * sin(kf * 2.618 + uTime * 0.080);
+        float pw = 0.10 + 0.06 * sin(kf * 1.4 + uTime * 0.030);
+        // Prominences hug close to surface (pow limb, 5.5)
+        proms += smoothstep(pw, 0.0, abs(da)) * pow(limb, 5.5) * (1.5 + pn);
       }
-      g += proms * 0.55;
+      g += proms * 0.80;
     }
 
-    // Slow breath
-    float breath = 0.88 + 0.12 * sin(uTime * 0.28 + vObjPos.x * 2.3 + vObjPos.y * 1.8);
-    g *= breath;
+    // Global shimmer
+    float shimmer = 0.82 + 0.18 * sin(uTime * 0.85 + vObjPos.x * 4.2 + vObjPos.y * 3.1);
+    g *= shimmer;
 
-    gl_FragColor = vec4(uColor * g, clamp(g * 0.90, 0.0, 1.0));
+    gl_FragColor = vec4(uColor * g, clamp(g * 0.92, 0.0, 1.0));
   }
 `;
 
@@ -228,8 +249,9 @@ const SunViz: React.FC = () => {
   const outerRef   = useRef<HTMLDivElement>(null);
   const mountRef   = useRef<HTMLDivElement>(null);
   const haloRef    = useRef<HTMLDivElement>(null);
-  const atmosphereRef = useRef<HTMLDivElement>(null);
   const pausedRef  = useRef(true);
+  const visibleRef = useRef(true);  // IntersectionObserver state
+  const loopControlRef = useRef<{ start: () => void; stop: () => void } | null>(null);
   const gsapCtxRef   = useRef<ReturnType<typeof gsap.context> | null>(null);
   const tweensRef    = useRef<gsap.core.Tween[]>([]);
   const gsapInitRef  = useRef(false);
@@ -300,16 +322,10 @@ const SunViz: React.FC = () => {
       coronas.push({ geo, mat });
     };
 
-    // chromosphere – bright orange-white, plasma prominences
-    addCorona(114, Math.min(segs, 48), 3.8, 1.2, new THREE.Color(1.00, 0.42, 0.02), 1);
-    // inner flame corona – orange-red
-    addCorona(148, Math.min(segs, 36), 2.6, 1.6, new THREE.Color(1.00, 0.25, 0.01));
-    // mid corona – deep orange-red
-    addCorona(195, Math.min(segs, 24), 1.3, 2.2, new THREE.Color(0.88, 0.14, 0.01));
-    // outer corona – deep crimson
-    if (!dev.isMobile) {
-      addCorona(255, Math.min(segs, 16), 0.55, 3.0, new THREE.Color(0.60, 0.06, 0.00));
-    }
+    // chromosphere – sits just above photosphere, plasma prominences ON
+    addCorona(104, Math.min(segs, 48), 3.5, 2.0, new THREE.Color(1.00, 0.55, 0.08), 1);
+    // spicule layer – thin bright jets, hugs surface
+    addCorona(110, Math.min(segs, 36), 1.8, 2.8, new THREE.Color(1.00, 0.75, 0.20));
 
     // ── Fresnel atmosphere layers — tight limb-glow halos ────────────────────
     type AE = { geo: THREE.SphereGeometry; mat: THREE.ShaderMaterial };
@@ -337,28 +353,33 @@ const SunViz: React.FC = () => {
       atmos.push({ geo, mat });
     };
 
-    // Layer 1: chromosphere — tight hot white-orange ring at solar limb
-    addAtmo(105, Math.min(segs, 64), new THREE.Color(1.00, 0.60, 0.12), 2.2, 3.0);
-    // Layer 2: inner atmosphere — warm orange
-    addAtmo(118, Math.min(segs, 52), new THREE.Color(1.00, 0.32, 0.03), 1.5, 2.2);
-    // Layer 3: mid atmosphere — orange-red
-    addAtmo(142, Math.min(segs, 40), new THREE.Color(0.90, 0.16, 0.01), 0.90, 1.6);
-    // Layer 4: outer glow — deep crimson, wide falloff
-    addAtmo(178, Math.min(segs, 32), new THREE.Color(0.58, 0.06, 0.00), 0.48, 1.1);
-    if (!dev.isMobile) {
-      // Layer 5: faint red haze — desktop only
-      addAtmo(225, Math.min(segs, 20), new THREE.Color(0.30, 0.02, 0.00), 0.20, 0.80);
-    }
+    // Blazing yellow-white chromosphere rim — tight, very high Fresnel falloff
+    addAtmo(102, Math.min(segs, 64), new THREE.Color(1.00, 0.82, 0.30), 4.5, 9.0);
+    // Orange inner halo — just beyond photosphere
+    addAtmo(107, Math.min(segs, 52), new THREE.Color(1.00, 0.48, 0.06), 2.8, 7.0);
+    // Faint orange-red halo — max 14% beyond sun radius (r=114), invisible at edges
+    addAtmo(114, Math.min(segs, 40), new THREE.Color(0.80, 0.20, 0.02), 1.2, 5.5);
 
     const clock    = new THREE.Clock();
     const FRAME_MS = 1000 / 40; // 40fps cap
     let lastTs     = 0;
 
+    // cancel/restart helpers — avoids 60-fps rAF callbacks while paused
+    const stopLoop  = () => { cancelAnimationFrame(animId); animId = 0; };
+    const startLoop = () => {
+      // Only restart if both conditions are met
+      if (!animId && !pausedRef.current && visibleRef.current) {
+        animId = requestAnimationFrame(animate);
+      }
+    };
+
+    // Expose to other effects via ref
+    loopControlRef.current = { start: startLoop, stop: stopLoop };
+
     const animate = (ts: number) => {
-      animId = requestAnimationFrame(animate);
-      if (!mounted) return;
-      if (document.hidden || pausedRef.current) return;
-      if (ts - lastTs < FRAME_MS) return;
+      animId = 0; // cleared before rescheduling so startLoop() detects a stopped state
+      if (!mounted || document.hidden || pausedRef.current) return;
+      if (ts - lastTs < FRAME_MS) { animId = requestAnimationFrame(animate); return; }
       lastTs = ts;
       const t = clock.getElapsedTime();
       sunMat.uniforms.uTime.value = t;
@@ -366,8 +387,9 @@ const SunViz: React.FC = () => {
       sunMesh.rotation.y = t * 0.022;
       sunMesh.rotation.z = Math.sin(t * 0.012) * 0.045;
       renderer.render(scene, camera);
+      animId = requestAnimationFrame(animate);
     };
-    requestAnimationFrame(animate);
+    startLoop();
 
     // ── Shader pre-warm ────────────────────────────────────────────────────────
     // WebGL compiles GLSL shaders synchronously on the FIRST renderer.render() call.
@@ -395,15 +417,25 @@ const SunViz: React.FC = () => {
     });
     ro.observe(container);
 
+    // Pause when home section scrolls off-screen — stops GPU work entirely
+    const io = new IntersectionObserver(([entry]) => {
+      visibleRef.current = entry.isIntersecting;
+      if (!entry.isIntersecting) stopLoop();
+      else startLoop(); // startLoop checks pausedRef internally
+    }, { threshold: 0 });
+    io.observe(container);
+
     return () => {
       mounted = false;
-      cancelAnimationFrame(animId);
+      stopLoop();
+      io.disconnect();
       if ((window as any).requestIdleCallback) {
         (window as any).cancelIdleCallback(warmId);
       } else {
         clearTimeout(warmId as unknown as number);
       }
       ro.disconnect();
+      loopControlRef.current = null;
       sunGeo.dispose();
       sunMat.dispose();
       coronas.forEach(({ geo, mat }) => { geo.dispose(); mat.dispose(); });
@@ -423,8 +455,11 @@ const SunViz: React.FC = () => {
 
       if (!isLight) {
         tweensRef.current.forEach(t => t.pause());
+        loopControlRef.current?.stop(); // fully cancel rAF, not just skip
         return;
       }
+
+      loopControlRef.current?.start(); // restart rAF if it was stopped
 
       if (gsapInitRef.current) {
         // Already initialised — resume continuous tweens from where they left off
@@ -446,24 +481,13 @@ const SunViz: React.FC = () => {
         tweensRef.current = [
           // Halo: breathing scale + opacity pulse
           gsap.to(haloRef.current, {
-            scale:    1.12,
-            opacity:  0.75,
+            scale:    1.10,
+            opacity:  0.70,
             duration: 9.0,
             yoyo:     true,
             repeat:   -1,
             ease:     'sine.inOut',
             delay:    0.8,
-            transformOrigin: '50% 50%',
-          }),
-          // Outer atmosphere: very slow breathing to simulate solar wind pulses
-          gsap.to(atmosphereRef.current, {
-            scale:    1.08,
-            opacity:  0.55,
-            duration: 12.0,
-            yoyo:     true,
-            repeat:   -1,
-            ease:     'sine.inOut',
-            delay:    2.0,
             transformOrigin: '50% 50%',
           }),
         ];
@@ -496,6 +520,7 @@ const SunViz: React.FC = () => {
       {/* Three.js canvas mount point */}
       <div ref={mountRef} className="absolute inset-0" style={{ background: 'transparent' }} />
 
+      {/* Tight core halo — soft warm bloom directly over the sphere, no ring artifact */}
       <div
         ref={haloRef}
         style={{
@@ -503,32 +528,13 @@ const SunViz: React.FC = () => {
           top:           '50%',
           left:          '50%',
           transform:     'translate(-50%,-50%)',
-          width:         '90vh',
-          height:        '90vh',
+          width:         '52vh',
+          height:        '52vh',
           borderRadius:  '50%',
-          background:    'radial-gradient(circle, rgba(255,210,80,0.14) 0%, rgba(255,130,20,0.10) 30%, rgba(220,70,5,0.06) 55%, transparent 72%)',
-          filter:        'blur(14px)',
+          background:    'radial-gradient(circle, rgba(255,210,80,0.10) 0%, rgba(255,120,20,0.05) 40%, transparent 68%)',
+          filter:        'blur(8px)',
           willChange:    'transform',
           pointerEvents: 'none',
-        }}
-      />
-
-      {/* Outer atmosphere — subtle warm ambient tone, tight around sphere */}
-      <div
-        ref={atmosphereRef}
-        style={{
-          position:      'absolute',
-          top:           '50%',
-          left:          '50%',
-          transform:     'translate(-50%,-50%)',
-          width:         '150vh',
-          height:        '150vh',
-          borderRadius:  '50%',
-          background:    'radial-gradient(circle, transparent 25%, rgba(200,55,5,0.04) 40%, rgba(140,28,2,0.07) 58%, rgba(80,12,1,0.04) 72%, transparent 82%)',
-          filter:        'blur(22px)',
-          willChange:    'transform',
-          pointerEvents: 'none',
-          opacity:       0.45,
         }}
       />
 

@@ -823,11 +823,18 @@ const ResumeSection: React.FC = memo(() => {
 export default function App() {
   const [lang, setLang] = useState<Language>(Language.EN);
   const [activeSection, setActiveSection] = useState('home');
-  const [theme, setTheme] = useState<Theme>('dark');
+  const [theme, setTheme] = useState<Theme>(() => {
+    try {
+      const saved = localStorage.getItem('theme') as Theme | null;
+      if (saved === 'dark' || saved === 'light') return saved;
+    } catch { /* ignore */ }
+    return 'dark';
+  });
 
   const toggleTheme = useCallback(() => {
     const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
     document.documentElement.setAttribute('data-theme', next);
+    try { localStorage.setItem('theme', next); } catch { /* ignore */ }
     startTransition(() => setTheme(next as Theme));
   }, []);
 

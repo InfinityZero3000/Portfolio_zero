@@ -40,6 +40,11 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
   const [isGlobeReady, setIsGlobeReady] = useState(false);
   const { theme } = useTheme();
   const themeRef = useRef(theme);
+
+  // Pause/resume control — shared across effects
+  const pausedRef = useRef(false);            // true = animate loop should stop
+  const animFnRef = useRef<((ts: number) => void) | null>(null); // stable ref to animate fn
+  const animIdRef = useRef<number | null>(null);                  // current rAF id
   const { width, height } = useResizeDetector({
     targetRef: containerRef,
     refreshMode: 'debounce',
@@ -103,7 +108,6 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
     const cleanupTimeouts: number[] = [];
     const cleanupIntervals: number[] = [];
     const cleanupListeners: Array<() => void> = [];
-    let animationFrameId: number | null = null;
 
     const registerTimeout = (fn: () => void, delay: number) => {
       const id = window.setTimeout(fn, delay);
@@ -497,6 +501,17 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
 
       globeRef.current = myGlobe;
 
+      // Apply initial pause state based on current theme
+      // (the separate pause-control useEffect handles changes; this covers the first load)
+      {
+        const initIsLight = document.documentElement.getAttribute('data-theme') === 'light';
+        if (initIsLight) {
+          pausedRef.current = true; // animate loop will exit on first tick
+          try { myGlobe.renderer().setAnimationLoop(null); } catch (_) {}
+          try { controls.autoRotate = false; } catch (_) {}
+        }
+      }
+
       // Optimized animation loop with adaptive frame rate
       let lastTime = 0;
       let isUserInteracting = false;
@@ -553,7 +568,11 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
       const idleFPS = deviceCapability.isMobile ? 15 : 30;
 
       const animate = (currentTime: number) => {
-        if (!mounted) return;
+        // Stop loop when paused or unmounted — observer will restart
+        if (!mounted || pausedRef.current) {
+          animIdRef.current = null;
+          return;
+        }
 
         // Use appropriate frame rate based on interaction
         const fps = isUserInteracting ? targetFPS : idleFPS;
@@ -561,7 +580,7 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
 
         const deltaTime = currentTime - lastTime;
         if (deltaTime < frameInterval) {
-          animationFrameId = requestAnimationFrame(animate);
+          animIdRef.current = requestAnimationFrame(animate);
           return;
         }
 
@@ -570,9 +589,10 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
         // Update controls (throttled internally)
         controls.update();
 
-        animationFrameId = requestAnimationFrame(animate);
+        animIdRef.current = requestAnimationFrame(animate);
       };
-      animationFrameId = requestAnimationFrame(animate);
+      animFnRef.current = animate;
+      animIdRef.current = requestAnimationFrame(animate);
 
       // Call onGlobeReady after zoom animation completes
       registerTimeout(() => {
@@ -594,9 +614,11 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
       cleanupTimeouts.forEach(id => clearTimeout(id));
       cleanupIntervals.forEach(id => clearInterval(id));
       cleanupListeners.forEach(dispose => dispose());
-      if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId);
+      if (animIdRef.current != null) {
+        cancelAnimationFrame(animIdRef.current);
+        animIdRef.current = null;
       }
+      animFnRef.current = null;
       if (globeRef.current?._destructor) {
         globeRef.current._destructor();
       }
@@ -606,6 +628,84 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
       }
     };
   }, [width, height, textureURLs, deviceCapability, rendererSettings, onGlobeReady, onZoomOut]);
+
+  // ── Pause / resume control ─────────────────────────────────────────────────
+  // Globe should only render when: theme === 'dark' AND home section is visible.
+  // Uses MutationObserver (theme) + IntersectionObserver (scroll) to stop/start
+  // both our custom rAF loop and Globe.gl's internal WebGLRenderer loop.
+  useEffect(() => {
+    const getRenderer = (): THREE.WebGLRenderer | null => {
+      try { return globeRef.current?.renderer?.() ?? null; } catch { return null; }
+    };
+
+    let isVisible = true;         // tracks IntersectionObserver state
+    let rendererStopped = false;  // true if we called setAnimationLoop(null)
+
+    const shouldPause = () => {
+      const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+      return isLight || !isVisible;
+    };
+
+    const doPause = () => {
+      pausedRef.current = true;
+      if (animIdRef.current != null) {
+        cancelAnimationFrame(animIdRef.current);
+        animIdRef.current = null;
+      }
+      const r = getRenderer();
+      if (r && !rendererStopped) {
+        try { r.setAnimationLoop(null); rendererStopped = true; } catch (_) {}
+      }
+      try { globeRef.current?.controls?.()?.autoRotate === undefined || (globeRef.current.controls().autoRotate = false); } catch (_) {}
+    };
+
+    const doResume = () => {
+      pausedRef.current = false;
+      // Restart our custom controls-update loop
+      if (animIdRef.current == null && animFnRef.current) {
+        animIdRef.current = requestAnimationFrame(animFnRef.current);
+      }
+      // Restart Globe.gl's renderer only if we previously stopped it
+      if (rendererStopped) {
+        const r = getRenderer();
+        if (r && globeRef.current) {
+          try {
+            const s = globeRef.current.scene();
+            const c = globeRef.current.camera();
+            r.setAnimationLoop(() => r.render(s, c));
+            rendererStopped = false;
+          } catch (_) {}
+        }
+      }
+      try { globeRef.current?.controls?.()?.autoRotate === undefined || (globeRef.current.controls().autoRotate = true); } catch (_) {}
+    };
+
+    const update = () => { if (shouldPause()) doPause(); else doResume(); };
+
+    // Watch data-theme attribute changes
+    const themeObs = new MutationObserver(update);
+    themeObs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+    // Watch scroll visibility — pause when home section is off-screen
+    let io: IntersectionObserver | null = null;
+    if (containerRef.current) {
+      io = new IntersectionObserver(([entry]) => {
+        isVisible = entry.isIntersecting;
+        update();
+      }, { threshold: 0 });
+      io.observe(containerRef.current);
+    }
+
+    // Apply current state immediately (globe may not be loaded yet — that's OK,
+    // pausedRef is set so animate exits on first tick, and Globe.gl initial pause
+    // is handled inside loadGlobe useEffect)
+    update();
+
+    return () => {
+      themeObs.disconnect();
+      io?.disconnect();
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Update sun light position when sun position changes
   useEffect(() => {

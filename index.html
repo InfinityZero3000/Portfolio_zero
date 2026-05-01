@@ -72,6 +72,18 @@
         document.head.appendChild(script);
       })();
     </script>
+
+    <!-- Restore saved theme before first paint to avoid flash -->
+    <script>
+      (function() {
+        try {
+          var t = localStorage.getItem('theme');
+          if (t === 'light' || t === 'dark') {
+            document.documentElement.setAttribute('data-theme', t);
+          }
+        } catch(e) {}
+      })();
+    </script>
     
     <!-- Inline critical CSS to prevent FOUC -->
     <style>
