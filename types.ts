@@ -29,6 +29,8 @@ export interface Achievement {
   year: string;
   title: { [key in Language]: string };
   description: { [key in Language]: string };
+  category?: 'research' | 'project' | 'ai' | 'education' | 'award';
+  icon?: 'flask' | 'rocket' | 'chart' | 'brain' | 'graduation' | 'trophy';
 }
 
 export interface Project {

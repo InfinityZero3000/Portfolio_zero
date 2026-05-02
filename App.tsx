@@ -1,7 +1,7 @@
 import React, { useState, createContext, useContext, memo, lazy, Suspense, useEffect, useCallback, useRef, startTransition } from 'react';
 import Lenis from 'lenis';
 import { motion, AnimatePresence } from 'framer-motion';
-import { NAV_ITEMS, PROJECTS, SKILLS, /* ACHIEVEMENTS, */ EDUCATION_DATA, BIO, NAME } from './constants';
+import { NAV_ITEMS, PROJECTS, SKILLS, ACHIEVEMENTS, EDUCATION_DATA, BIO, NAME } from './constants';
 import { Language } from './types';
 import { Sun, Moon, Download, Award, GraduationCap, FileText, Github, Linkedin, Mail, MapPin, Calendar, Menu, X } from 'lucide-react';
 import clsx from 'clsx';
@@ -450,27 +450,93 @@ const SkillSection: React.FC = memo(() => {
   );
 });
 
-// const AchievementsPage: React.FC = memo(() => {
-//   const { lang } = useLang();
-//   return (
-//     <PageWrapper title={lang === Language.EN ? 'Achievements' : 'Thành Tựu'}>
-//       <div className="space-y-8">
-//         {ACHIEVEMENTS.map((item) => (
-//           <div key={item.id} className="flex flex-col md:flex-row gap-6 md:gap-12 md:items-center border-b border-dark-700 pb-8 last:border-0">
-//             <div className="text-brand-600 font-mono text-xl md:w-32">{item.year}</div>
-//             <div className="flex-1">
-//               <h3 className="text-2xl font-bold text-white mb-2">{item.title[lang]}</h3>
-//               <p className="text-gray-400">{item.description[lang]}</p>
-//             </div>
-//             <div className="text-brand-500">
-//               <Award size={32} />
-//             </div>
-//           </div>
-//         ))}
-//       </div>
-//     </PageWrapper>
-//   );
-// });
+// --- Achievement Section helpers ---
+const CATEGORY_META: Record<string, { label: { en: string; vi: string }; color: string; bg: string; border: string }> = {
+  research:  { label: { en: 'Research',  vi: 'Nghiên Cứu'  }, color: 'text-purple-400',  bg: 'bg-purple-900/30',  border: 'border-purple-500/40' },
+  project:   { label: { en: 'Project',   vi: 'Dự Án'       }, color: 'text-brand-400',   bg: 'bg-brand-900/30',   border: 'border-brand-500/40'  },
+  ai:        { label: { en: 'AI / ML',   vi: 'AI / ML'     }, color: 'text-cyan-400',    bg: 'bg-cyan-900/30',    border: 'border-cyan-500/40'   },
+  education: { label: { en: 'Education', vi: 'Học Vấn'     }, color: 'text-green-400',   bg: 'bg-green-900/30',   border: 'border-green-500/40'  },
+  award:     { label: { en: 'Award',     vi: 'Giải Thưởng' }, color: 'text-yellow-400',  bg: 'bg-yellow-900/30',  border: 'border-yellow-500/40' },
+};
+
+const AchievementIcon: React.FC<{ icon?: string; size?: number }> = ({ icon, size = 28 }) => {
+  switch (icon) {
+    case 'flask':      return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 3h6"/><path d="M10 3v7l-4 7a2 2 0 0 0 1.74 3h8.52A2 2 0 0 0 18 17l-4-7V3"/></svg>;
+    case 'rocket':     return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>;
+    case 'chart':      return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>;
+    case 'brain':      return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/><path d="M17.599 6.5a3 3 0 0 0 .399-1.375"/><path d="M6.003 5.125A3 3 0 0 0 6.401 6.5"/><path d="M3.477 10.896a4 4 0 0 1 .585-.396"/><path d="M19.938 10.5a4 4 0 0 1 .585.396"/><path d="M6 18a4 4 0 0 1-1.967-.516"/><path d="M19.967 17.484A4 4 0 0 1 18 18"/></svg>;
+    case 'graduation': return <GraduationCap size={size} />;
+    default:           return <Award size={size} />;
+  }
+};
+
+const AchievementSection: React.FC = memo(() => {
+  const { lang } = useLang();
+
+  return (
+    <SectionWrapper id="achievements" title={lang === Language.EN ? 'Achievements' : 'Thành Tựu'}>
+      <div className="relative">
+        {/* Vertical timeline line */}
+        <div className="absolute left-5 top-0 bottom-0 w-px bg-gradient-to-b from-brand-600/80 via-dark-700 to-transparent hidden md:block" />
+
+        <div className="flex flex-col gap-10">
+          {ACHIEVEMENTS.map((item, idx) => {
+            const cat = item.category ? CATEGORY_META[item.category] : CATEGORY_META['project'];
+            const catLabel = lang === Language.EN ? cat.label.en : cat.label.vi;
+            return (
+              <motion.div
+                key={item.id}
+                initial={{ opacity: 0, x: -40 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true, amount: 0.15 }}
+                transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1], delay: idx * 0.08 }}
+                className="relative flex gap-0 md:gap-8 items-start"
+              >
+                {/* Timeline dot */}
+                <div className="hidden md:flex flex-shrink-0 w-10 items-start justify-center pt-6">
+                  <div className={`w-4 h-4 rounded-full border-2 border-brand-600 ${cat.bg} flex items-center justify-center ring-4 ring-dark-900`}>
+                    <div className="w-1.5 h-1.5 rounded-full bg-brand-500" />
+                  </div>
+                </div>
+
+                {/* Card */}
+                <div className="flex-1 group">
+                  <div className={`relative bg-dark-800/60 hover:bg-dark-800 border ${cat.border} rounded-2xl p-6 transition-all duration-300 hover:shadow-lg hover:shadow-brand-600/10 overflow-hidden`}>
+                    {/* Background glow on hover */}
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+                      style={{ background: 'radial-gradient(600px circle at var(--mouse-x,50%) var(--mouse-y,50%), rgba(220,38,38,0.04), transparent 40%)' }}
+                    />
+
+                    {/* Top row: year + category badge + icon */}
+                    <div className="flex flex-wrap items-center gap-3 mb-4">
+                      <span className="font-mono text-brand-500 text-sm font-bold tracking-widest">{item.year}</span>
+                      <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${cat.bg} ${cat.color} border ${cat.border}`}>
+                        {catLabel}
+                      </span>
+                      <div className="ml-auto text-white/20 group-hover:text-brand-500 transition-colors duration-300">
+                        <AchievementIcon icon={item.icon} size={24} />
+                      </div>
+                    </div>
+
+                    {/* Title */}
+                    <h3 className="text-xl font-extrabold text-white leading-snug mb-3 group-hover:text-brand-50 transition-colors">
+                      {item.title[lang]}
+                    </h3>
+
+                    {/* Description */}
+                    <p className="text-gray-400 text-sm leading-relaxed">
+                      {item.description[lang]}
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      </div>
+    </SectionWrapper>
+  );
+});
 
 const GithubSection: React.FC = memo(() => {
   const { lang } = useLang();
@@ -931,6 +997,7 @@ export default function App() {
           <GithubSection />
           <ResumeSection />
           <SkillSection />
+          <AchievementSection />
           <EducationSection />
         </main>
       </div>
