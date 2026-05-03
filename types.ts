@@ -31,6 +31,7 @@ export interface Achievement {
   description: { [key in Language]: string };
   category?: 'research' | 'project' | 'ai' | 'education' | 'award';
   icon?: 'flask' | 'rocket' | 'chart' | 'brain' | 'graduation' | 'trophy';
+  imageUrl?: string;
 }
 
 export interface Project {

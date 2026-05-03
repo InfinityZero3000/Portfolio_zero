@@ -470,6 +470,32 @@ const AchievementIcon: React.FC<{ icon?: string; size?: number }> = ({ icon, siz
   }
 };
 
+const resolvePublicUrl = (url: string) => {
+  if (/^https?:\/\//i.test(url)) return url;
+  const base = import.meta.env.BASE_URL || '/';
+  return `${base}${url.replace(/^\//, '')}`;
+};
+
+const AchievementImage: React.FC<{ src?: string; alt: string }> = ({ src, alt }) => {
+  const [failed, setFailed] = useState(false);
+
+  if (!src || failed) return null;
+
+  return (
+    <div className="w-full md:w-[360px] lg:w-[420px] flex-shrink-0">
+      <div className="rounded-xl overflow-hidden shadow-xl bg-dark-900/30 border border-white/10">
+        <img
+          src={resolvePublicUrl(src)}
+          alt={alt}
+          loading="lazy"
+          className="w-full h-auto object-contain"
+          onError={() => setFailed(true)}
+        />
+      </div>
+    </div>
+  );
+};
+
 const AchievementSection: React.FC = memo(() => {
   const { lang } = useLang();
 
@@ -507,26 +533,32 @@ const AchievementSection: React.FC = memo(() => {
                       style={{ background: 'radial-gradient(600px circle at var(--mouse-x,50%) var(--mouse-y,50%), rgba(220,38,38,0.04), transparent 40%)' }}
                     />
 
-                    {/* Top row: year + category badge + icon */}
-                    <div className="flex flex-wrap items-center gap-3 mb-4">
-                      <span className="font-mono text-brand-500 text-sm font-bold tracking-widest">{item.year}</span>
-                      <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${cat.bg} ${cat.color} border ${cat.border}`}>
-                        {catLabel}
-                      </span>
-                      <div className="ml-auto text-white/20 group-hover:text-brand-500 transition-colors duration-300">
-                        <AchievementIcon icon={item.icon} size={24} />
+                    <div className="relative flex flex-col md:flex-row gap-6 items-start">
+                      <AchievementImage src={item.imageUrl} alt={item.title[lang]} />
+
+                      <div className="flex-1 min-w-0">
+                        {/* Top row: year + category badge + icon */}
+                        <div className="flex flex-wrap items-center gap-3 mb-4">
+                          <span className="font-mono text-brand-500 text-sm font-bold tracking-widest">{item.year}</span>
+                          <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${cat.bg} ${cat.color} border ${cat.border}`}>
+                            {catLabel}
+                          </span>
+                          <div className="ml-auto text-white/20 group-hover:text-brand-500 transition-colors duration-300">
+                            <AchievementIcon icon={item.icon} size={24} />
+                          </div>
+                        </div>
+
+                        {/* Title */}
+                        <h3 className="text-xl font-extrabold text-white leading-snug mb-3 group-hover:text-brand-50 transition-colors">
+                          {item.title[lang]}
+                        </h3>
+
+                        {/* Description */}
+                        <p className="text-gray-400 text-sm leading-relaxed">
+                          {item.description[lang]}
+                        </p>
                       </div>
                     </div>
-
-                    {/* Title */}
-                    <h3 className="text-xl font-extrabold text-white leading-snug mb-3 group-hover:text-brand-50 transition-colors">
-                      {item.title[lang]}
-                    </h3>
-
-                    {/* Description */}
-                    <p className="text-gray-400 text-sm leading-relaxed">
-                      {item.description[lang]}
-                    </p>
                   </div>
                 </div>
               </motion.div>
@@ -754,7 +786,12 @@ const ResumeSection: React.FC = memo(() => {
   const [iframeInteractive, setIframeInteractive] = useState(false);
   const interactiveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const rawResumeUrl = import.meta.env.VITE_RESUME_URL || '/NguyenHuuThang_Resume.pdf';
+  // Define resume URL safely handling env var issues
+  const envResumeUrl = import.meta.env?.VITE_RESUME_URL;
+  // If env var contains auto-download parameter or is unexpected, default to local file 
+  const rawResumeUrl = (envResumeUrl && typeof envResumeUrl === 'string' && !envResumeUrl.includes('export=download')) 
+    ? envResumeUrl 
+    : '/NguyenHuuThang_Resume.pdf';
 
   // Always embed local PDF to avoid external URL failures
   const localPdfUrl = '/NguyenHuuThang_Resume.pdf#toolbar=1&navpanes=1&scrollbar=1';
@@ -815,10 +852,8 @@ const ResumeSection: React.FC = memo(() => {
             </div>
             <div className="flex gap-3">
               <a
-                href={downloadUrl}
-                download={downloadUrl.startsWith('/') ? 'NguyenHuuThang_Resume.pdf' : undefined}
-                target={downloadUrl.startsWith('/') ? undefined : '_blank'}
-                rel="noreferrer"
+                href={'/NguyenHuuThang_Resume.pdf'}
+                download="NguyenHuuThang_Resume.pdf"
                 className="inline-flex items-center gap-2 bg-dark-800 hover:bg-dark-700 text-white px-4 py-2 rounded-lg font-medium transition-all border border-dark-700 hover:border-brand-600"
               >
                 <Download size={18} />

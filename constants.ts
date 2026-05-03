@@ -183,6 +183,36 @@ export const SKILLS: SkillCategory[] = [
 
 export const ACHIEVEMENTS: Achievement[] = [
   {
+    id: 'a0',
+    year: '2026',
+    title: {
+      [Language.EN]: 'First Prize - Scientific Research Competition 2025-2026',
+      [Language.VI]: 'Giải Nhất - Cuộc Thi Sinh Viên Nghiên Cứu Khoa Học 2025-2026'
+    },
+    description: {
+      [Language.EN]: 'Awarded First Prize for the research topic: "Building VIRES-HOTELABSA dataset for aspect-based sentiment analysis" at Ho Chi Minh City University of Industry and Trade (HUIT).',
+      [Language.VI]: 'Đạt Giải Nhất với đề tài: "Xây dựng bộ dữ liệu VIRES-HOTELABSA cho bài toán phân tích cảm xúc theo khía cạnh" tại Trường Đại học Công Thương TP.HCM (HUIT).'
+    },
+    category: 'award',
+    icon: 'trophy',
+    imageUrl: '/Scientific-research-certificate-of-merit.png'
+  },
+  {
+    id: 'a0_1',
+    year: '2026',
+    title: {
+      [Language.EN]: 'DASGRI 2026 Conference Presenter/Co-Author',
+      [Language.VI]: 'Trình Bày/Đồng Tác Giả Hội Nghị DASGRI 2026'
+    },
+    description: {
+      [Language.EN]: 'Presented the paper "Knowledge Graph-Enhanced PhoBERT for Vietnamese Aspect-Based Sentiment Analysis" at the International Conference on Data Science and AI for Social Good and Responsible Innovation (DASGRI-2026) organized by Goldsmiths, University of London.',
+      [Language.VI]: 'Trình bày bài báo "Knowledge Graph-Enhanced PhoBERT for Vietnamese Aspect-Based Sentiment Analysis" tại Hội nghị Quốc tế DASGRI 2026 do Goldsmiths, University of London tổ chức.'
+    },
+    category: 'research',
+    icon: 'flask',
+    imageUrl: '/image-project/cert-dasgri.png'
+  },
+  {
     id: 'a1',
     year: '2026',
     title: {
