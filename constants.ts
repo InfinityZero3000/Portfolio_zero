@@ -210,7 +210,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     },
     category: 'research',
     icon: 'flask',
-    imageUrl: '/image-project/cert-dasgri.png'
+    imageUrl: '/Thang-Nguyen-Huu_73.png'
   },
   {
     id: 'a1',

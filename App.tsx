@@ -231,11 +231,17 @@ const HomeSection: React.FC = memo(() => {
       </Suspense>
       <div
         className="absolute inset-0 pointer-events-none"
-        style={{ background: 'linear-gradient(to top, var(--page-bg), transparent)' }}
+        style={{
+          opacity: 0.65,
+          background: 'linear-gradient(to top, var(--page-bg) 0%, transparent 70%)',
+        }}
       />
       <div
         className="absolute inset-0 pointer-events-none md:w-1/2"
-        style={{ background: 'linear-gradient(to right, var(--page-bg), transparent)' }}
+        style={{
+          opacity: 0.55,
+          background: 'linear-gradient(to right, var(--page-bg) 0%, transparent 80%)',
+        }}
       />
 
       <motion.div
