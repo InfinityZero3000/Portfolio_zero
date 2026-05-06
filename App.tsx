@@ -188,7 +188,7 @@ const SectionWrapper: React.FC<{
 }> = ({ children, title, id, showHeader = true }) => (
   <section
     id={id}
-    className="min-h-screen w-full relative"
+    className="w-full relative"
   >
     {showHeader && title && (
       <div className="pt-28 pb-12 px-6 md:px-16 max-w-7xl mx-auto">
