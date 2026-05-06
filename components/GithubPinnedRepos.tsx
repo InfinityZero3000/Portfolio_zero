@@ -162,7 +162,10 @@ const GithubPinnedRepos: React.FC<{ lang: 'EN' | 'VI' }> = ({ lang }) => {
       const res = await fetch('/api/pinned-repos');
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || `HTTP ${res.status}`);
+        const msg =
+          (body?.error ? String(body.error) : '') +
+          (body?.hint ? ` — ${String(body.hint)}` : '');
+        throw new Error(msg || `HTTP ${res.status}`);
       }
       const data: PinnedRepo[] = await res.json();
       setRepos(data);

@@ -436,12 +436,12 @@ const SkillSection: React.FC = memo(() => {
                 {section.items.map((skill) => {
                   const levelInfo = getSkillLevelInfo(skill.level);
                   return (
-                    <div key={skill.name} className="flex items-center justify-between gap-3 group bg-dark-800/50 hover:bg-dark-800 p-3 rounded-lg transition-all">
+                    <div key={skill.name} className="flex items-center justify-between gap-3 group py-2 border-b border-dark-700/50 last:border-0 transition-all">
                       <div className="flex items-center gap-3 flex-1">
                         <div className="w-2 h-2 bg-gray-700 rounded-full group-hover:bg-brand-500 transition-colors" />
                         <span className="text-base text-gray-300 group-hover:text-white transition-colors font-medium">{skill.name}</span>
                       </div>
-                      <span className={`text-xs font-semibold px-3 py-1 rounded-full ${levelInfo.bg} ${levelInfo.color} border border-current/20 whitespace-nowrap`}>
+                      <span className={`text-xs font-semibold px-2.5 py-0.5 rounded ${levelInfo.bg} ${levelInfo.color} border border-current/20 whitespace-nowrap`}>
                         {levelInfo.text}
                       </span>
                     </div>

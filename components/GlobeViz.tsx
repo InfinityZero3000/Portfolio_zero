@@ -361,15 +361,19 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
             atmosphere.scale.set(1.1, 1.1, 1.1);
             atmosphere.renderOrder = -1;
 
-            // Fade in atmosphere
+            // Fade in atmosphere with a single rAF-based animation instead of setInterval
             atmosphereMaterial.transparent = true;
-            let opacity = 0;
-            const fadeIn = registerInterval(() => {
-              opacity += 0.05;
-              atmosphereMaterial.opacity = Math.min(opacity, 1);
+            atmosphereMaterial.opacity = 0;
+            const fadeStart = performance.now();
+            const fadeDuration = 600; // ms
+            const fadeStep = () => {
+              const elapsed = performance.now() - fadeStart;
+              const t = Math.min(elapsed / fadeDuration, 1);
+              atmosphereMaterial.opacity = t;
               atmosphereMaterial.needsUpdate = true;
-              if (opacity >= 1) clearInterval(fadeIn);
-            }, 30);
+              if (t < 1) requestAnimationFrame(fadeStep);
+            };
+            requestAnimationFrame(fadeStep);
 
             scene.add(atmosphere);
           }, 500); // Add atmosphere 500ms after zoom starts
@@ -473,20 +477,6 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
       // Add wheel listener for scroll detection (passive so it doesn't block Lenis)
       addCanvasListener(canvas, 'wheel', handleWheelScroll, { passive: true });
 
-      // Reduce update frequency for controls
-      controls.update = (() => {
-        let lastUpdate = 0;
-        const updateThrottle = deviceCapability.isMobile ? 33 : 16; // 30fps mobile, 60fps desktop
-        const originalUpdate = controls.update.bind(controls);
-        return function () {
-          const now = Date.now();
-          if (now - lastUpdate > updateThrottle) {
-            originalUpdate();
-            lastUpdate = now;
-          }
-        };
-      })();
-
       // Apply scene optimizations
       optimizeScene(scene, deviceCapability);
 
@@ -506,8 +496,8 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
       {
         const initIsLight = document.documentElement.getAttribute('data-theme') === 'light';
         if (initIsLight) {
-          pausedRef.current = true; // animate loop will exit on first tick
-          try { myGlobe.renderer().setAnimationLoop(null); } catch (_) {}
+          pausedRef.current = true; // globeLoop will bail on first tick
+          try { renderer.setAnimationLoop(null); } catch (_) {}
           try { controls.autoRotate = false; } catch (_) {}
         }
       }
@@ -567,32 +557,20 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
       const targetFPS = deviceCapability.isMobile ? 30 : 60;
       const idleFPS = deviceCapability.isMobile ? 15 : 30;
 
-      const animate = (currentTime: number) => {
-        // Stop loop when paused or unmounted — observer will restart
-        if (!mounted || pausedRef.current) {
-          animIdRef.current = null;
-          return;
-        }
-
-        // Use appropriate frame rate based on interaction
+      // Single merged loop: handles controls + render with FPS throttling.
+      // Replaces the old dual-loop (Globe.gl setAnimationLoop at 60fps + custom rAF).
+      let lastRenderTs = 0;
+      const globeLoop = (ts: number) => {
+        if (!mounted || pausedRef.current) return;
         const fps = isUserInteracting ? targetFPS : idleFPS;
-        const frameInterval = 1000 / fps;
-
-        const deltaTime = currentTime - lastTime;
-        if (deltaTime < frameInterval) {
-          animIdRef.current = requestAnimationFrame(animate);
-          return;
-        }
-
-        lastTime = currentTime - (deltaTime % frameInterval);
-
-        // Update controls (throttled internally)
+        if (ts - lastRenderTs < 1000 / fps) return;
+        lastRenderTs = ts;
         controls.update();
-
-        animIdRef.current = requestAnimationFrame(animate);
+        renderer.render(scene, camera);
       };
-      animFnRef.current = animate;
-      animIdRef.current = requestAnimationFrame(animate);
+      animFnRef.current = globeLoop as any;
+      // setAnimationLoop fires at display refresh rate; globeLoop throttles internally.
+      renderer.setAnimationLoop(globeLoop);
 
       // Call onGlobeReady after zoom animation completes
       registerTimeout(() => {
@@ -648,31 +626,27 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
 
     const doPause = () => {
       pausedRef.current = true;
-      if (animIdRef.current != null) {
-        cancelAnimationFrame(animIdRef.current);
-        animIdRef.current = null;
-      }
+      // Stop the merged setAnimationLoop (handles both render + controls)
       const r = getRenderer();
       if (r && !rendererStopped) {
         try { r.setAnimationLoop(null); rendererStopped = true; } catch (_) {}
+      }
+      // Cancel any lingering rAF (safety net)
+      if (animIdRef.current != null) {
+        cancelAnimationFrame(animIdRef.current);
+        animIdRef.current = null;
       }
       try { globeRef.current?.controls?.()?.autoRotate === undefined || (globeRef.current.controls().autoRotate = false); } catch (_) {}
     };
 
     const doResume = () => {
       pausedRef.current = false;
-      // Restart our custom controls-update loop
-      if (animIdRef.current == null && animFnRef.current) {
-        animIdRef.current = requestAnimationFrame(animFnRef.current);
-      }
-      // Restart Globe.gl's renderer only if we previously stopped it
+      // Restart the merged loop via setAnimationLoop using the stored loop fn
       if (rendererStopped) {
         const r = getRenderer();
-        if (r && globeRef.current) {
+        if (r && animFnRef.current) {
           try {
-            const s = globeRef.current.scene();
-            const c = globeRef.current.camera();
-            r.setAnimationLoop(() => r.render(s, c));
+            r.setAnimationLoop(animFnRef.current as any);
             rendererStopped = false;
           } catch (_) {}
         }

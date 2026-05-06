@@ -38,9 +38,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const token = process.env.GITHUB_TOKEN;
+  const token =
+    process.env.GITHUB_TOKEN ||
+    process.env.VITE_GITHUB_TOKEN;
   if (!token) {
-    return res.status(500).json({ error: 'GITHUB_TOKEN not configured' });
+    return res.status(500).json({
+      error: 'GITHUB_TOKEN not configured',
+      hint: 'Set GITHUB_TOKEN (recommended) or VITE_GITHUB_TOKEN in your deployment environment, then redeploy.',
+    });
   }
 
   try {

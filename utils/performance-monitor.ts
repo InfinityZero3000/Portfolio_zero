@@ -26,9 +26,8 @@ class PerformanceMonitor {
   private isRunning = false;
 
   constructor() {
-    if (typeof window !== 'undefined') {
-      this.startFPSMonitoring();
-    }
+    // FPS monitoring is started lazily on first call to getCurrentFPS()
+    // to avoid a perpetual 60fps rAF loop at module import time.
   }
 
   /**
@@ -72,9 +71,12 @@ class PerformanceMonitor {
   }
 
   /**
-   * Get current FPS
+   * Get current FPS — lazily starts monitoring on first call.
    */
   public getCurrentFPS(): number {
+    if (!this.isRunning && typeof window !== 'undefined') {
+      this.startFPSMonitoring();
+    }
     if (this.fpsFrames.length === 0) return 0;
     const sum = this.fpsFrames.reduce((a, b) => a + b, 0);
     return Math.round(sum / this.fpsFrames.length);

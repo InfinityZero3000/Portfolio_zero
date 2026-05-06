@@ -157,9 +157,9 @@ export const SKILLS: SkillCategory[] = [
     category: { [Language.EN]: 'Backend', [Language.VI]: 'Backend' },
     items: [
       { name: 'Python', level: SkillLevel.INTERMEDIATE },
+      { name: 'FastAPI', level: SkillLevel.INTERMEDIATE },
       { name: 'C/C++', level: SkillLevel.BASIC },
       { name: '.NET Core 9.0', level: SkillLevel.INTERMEDIATE },
-      { name: 'Redis', level: SkillLevel.BASIC }
     ]
   },
   {
@@ -171,12 +171,34 @@ export const SKILLS: SkillCategory[] = [
     ]
   },
   {
-    category: { [Language.EN]: 'AI & Data', [Language.VI]: 'Trí tuệ nhân tạo & Dữ Liệu' },
+    category: { [Language.EN]: 'Machine Learning', [Language.VI]: 'Học Máy' },
+    items: [
+      { name: 'PyTorch', level: SkillLevel.INTERMEDIATE },
+      { name: 'TensorFlow', level: SkillLevel.BASIC },
+      { name: 'Scikit-learn', level: SkillLevel.INTERMEDIATE },
+      { name: 'Hugging Face', level: SkillLevel.INTERMEDIATE },
+      { name: 'Transformers', level: SkillLevel.INTERMEDIATE },
+      { name: 'LLM Fine-tuning', level: SkillLevel.BASIC },
+    ]
+  },
+  {
+    category: { [Language.EN]: 'Deep Learning & NLP', [Language.VI]: 'Học Sâu & NLP' },
+    items: [
+      { name: 'BERT / PhoBERT', level: SkillLevel.INTERMEDIATE },
+      { name: 'RAG Pipelines', level: SkillLevel.INTERMEDIATE },
+      { name: 'Knowledge Graph', level: SkillLevel.INTERMEDIATE },
+      { name: 'LangChain / LangGraph', level: SkillLevel.INTERMEDIATE },
+      { name: 'CNN / Vision Transformer', level: SkillLevel.INTERMEDIATE },
+      { name: 'NLP', level: SkillLevel.INTERMEDIATE },
+    ]
+  },
+  {
+    category: { [Language.EN]: 'Data & Databases', [Language.VI]: 'Dữ Liệu & Cơ Sở Dữ Liệu' },
     items: [
       { name: 'PostgreSQL', level: SkillLevel.INTERMEDIATE },
       { name: 'SQL Server', level: SkillLevel.INTERMEDIATE },
-      { name: 'Machine Learning', level: SkillLevel.BASIC },
-      { name: 'NLP', level: SkillLevel.BEGINNER }
+      { name: 'MongoDB', level: SkillLevel.INTERMEDIATE },
+      { name: 'Redis', level: SkillLevel.BASIC },
     ]
   }
 ];
@@ -213,35 +235,6 @@ export const ACHIEVEMENTS: Achievement[] = [
     imageUrl: '/Thang-Nguyen-Huu_73.png'
   },
   {
-    id: 'a1',
-    year: '2026',
-    title: {
-      [Language.EN]: 'ViRES — Hotel ABSA Research Project',
-      [Language.VI]: 'Đề Tài Nghiên Cứu ViRES — Phân Tích Cảm Xúc Khách Sạn'
-    },
-    description: {
-      [Language.EN]: 'Led the development of a full-stack Aspect-Based Sentiment Analysis system for Vietnamese hotel reviews. The system achieved high accuracy in extracting fine-grained opinions across multiple aspects (service, location, price, amenities) and was deployed publicly on Vercel.',
-      [Language.VI]: 'Dẫn đầu phát triển hệ thống phân tích cảm xúc theo khía cạnh (ABSA) full-stack cho đánh giá khách sạn tiếng Việt. Hệ thống đạt độ chính xác cao trong việc trích xuất ý kiến chi tiết trên nhiều khía cạnh và được triển khai công khai trên Vercel.'
-    },
-    category: 'research',
-    icon: 'flask'
-  },
-  {
-    id: 'a2',
-    year: '2026',
-    title: {
-      [Language.EN]: 'LexiLingo — Full-Stack AI Language App',
-      [Language.VI]: 'LexiLingo — Ứng Dụng Học Ngôn Ngữ AI Full-Stack'
-    },
-    description: {
-      [Language.EN]: 'Architected and built LexiLingo from the ground up — a production-grade language learning platform powered by LangGraph and a microservice backend (FastAPI, PostgreSQL, MongoDB). The app is live at lexilingo.me with a public admin dashboard.',
-      [Language.VI]: 'Thiết kế và xây dựng LexiLingo từ đầu — nền tảng học ngôn ngữ cấp sản xuất được hỗ trợ bởi LangGraph và backend microservice (FastAPI, PostgreSQL, MongoDB). Ứng dụng đang hoạt động tại lexilingo.me với bảng quản trị công khai.'
-    },
-    category: 'project',
-    icon: 'rocket'
-  },
-
-  {
     id: 'a3',
     year: '2025',
     title: {
@@ -253,7 +246,8 @@ export const ACHIEVEMENTS: Achievement[] = [
       [Language.VI]: 'Phát triển mô hình học sâu sử dụng kiến trúc Vision Transformer (ViT) để phân loại ung thư da tự động. Triển khai như ứng dụng web Streamlit công khai, đạt độ chính xác cạnh tranh trên nhiều loại ung thư.'
     },
     category: 'ai',
-    icon: 'brain'
+    icon: 'brain',
+    imageUrl: '/Data-Science-Certificate.png'
   },
 ];
 

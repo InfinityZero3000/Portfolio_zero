@@ -14,12 +14,19 @@ function vercelApiDevPlugin(): Plugin {
         if (req.url !== '/api/pinned-repos') return next();
 
         // Load env so GITHUB_TOKEN is available
-        const env = loadEnv('development', process.cwd(), '');
-        const token = process.env.GITHUB_TOKEN ?? env.GITHUB_TOKEN;
+        const env = loadEnv(server.config.mode ?? 'development', process.cwd(), '');
+        const token =
+          process.env.GITHUB_TOKEN ??
+          env.GITHUB_TOKEN ??
+          process.env.VITE_GITHUB_TOKEN ??
+          env.VITE_GITHUB_TOKEN;
 
         if (!token) {
           res.writeHead(500, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'GITHUB_TOKEN not configured. Add it to .env file as GITHUB_TOKEN=...' }));
+          res.end(JSON.stringify({
+            error: 'GITHUB_TOKEN not configured',
+            hint: 'Add GITHUB_TOKEN=... to .env.local for dev, or set it in Vercel Project Settings → Environment Variables, then redeploy.',
+          }));
           return;
         }
 

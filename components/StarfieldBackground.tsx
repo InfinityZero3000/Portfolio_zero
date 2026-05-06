@@ -136,12 +136,12 @@ const StarfieldBackground: React.FC = () => {
     const CONSTELLATION_LINK_SQ = (CONSTELLATION_RADIUS * 0.7) * (CONSTELLATION_RADIUS * 0.7);
 
     const animate = (timestamp: number) => {
-      rafId = requestAnimationFrame(animate);
-      if (isPaused) return;
-
       // FPS cap: skip frame if not enough time has elapsed
       const elapsed = timestamp - lastTimestamp;
-      if (elapsed < FRAME_MS) return;
+      if (elapsed < FRAME_MS) {
+        rafId = requestAnimationFrame(animate);
+        return;
+      }
       lastTimestamp = timestamp - (elapsed % FRAME_MS);
       frame++;
 
@@ -299,12 +299,25 @@ const StarfieldBackground: React.FC = () => {
           : `rgba(255,255,255,${s.opacity})`;
         ctx.fill();
       }
+
+      // Schedule next frame at the end — only while active
+      rafId = requestAnimationFrame(animate);
     };
 
-    const handleVisibilityChange = () => { isPaused = document.hidden; };
+    const handleVisibilityChange = () => {
+      isPaused = document.hidden;
+      // Restart the loop when the tab becomes visible again
+      if (!isPaused) {
+        lastTimestamp = 0; // reset so first frame isn't skipped
+        rafId = requestAnimationFrame(animate);
+      }
+    };
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    requestAnimationFrame(animate);
+    // Start loop only if tab is currently visible
+    if (!isPaused) {
+      rafId = requestAnimationFrame(animate);
+    }
 
     return () => {
       cancelAnimationFrame(rafId);
