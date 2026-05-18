@@ -15,14 +15,19 @@ export const scrollToSection = (sectionId: string) => {
 };
 
 export const getCurrentSection = (): string => {
-  const sections = ['home', 'project', 'about', 'resume', 'skill', 'education'];
+  const sections = ['home', 'about', 'project', 'github', 'resume', 'skill', 'achievements', 'education'];
   const scrollPosition = window.scrollY + window.innerHeight / 2;
 
-  for (const sectionId of sections) {
+  // If reached the bottom of the page, return the last section
+  if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 50) {
+    return sections[sections.length - 1];
+  }
+
+  for (let i = sections.length - 1; i >= 0; i--) {
+    const sectionId = sections[i];
     const element = document.getElementById(sectionId);
     if (element) {
-      const { offsetTop, offsetHeight } = element;
-      if (scrollPosition >= offsetTop && scrollPosition < offsetTop + offsetHeight) {
+      if (scrollPosition >= element.offsetTop) {
         return sectionId;
       }
     }
