@@ -1,23 +1,18 @@
-import React, { useState, createContext, useContext, memo, lazy, Suspense, useEffect, useCallback, useRef, startTransition } from 'react';
+import React, { useState, createContext, useContext, memo, lazy, Suspense, useEffect, useCallback, useRef, startTransition, useMemo } from 'react';
 import Lenis from 'lenis';
 import { motion, AnimatePresence } from 'framer-motion';
 import { NAV_ITEMS, PROJECTS, SKILLS, ACHIEVEMENTS, EDUCATION_DATA, BIO, NAME } from './constants';
 import { Language } from './types';
-import { Sun, Moon, Download, Award, GraduationCap, FileText, Github, Linkedin, Mail, MapPin, Calendar, Menu, X } from 'lucide-react';
+import { Sun, Moon, Download, Award, GraduationCap, FileText, Github, Linkedin, Mail, MapPin, Calendar, Menu, X, Cpu } from 'lucide-react';
 import clsx from 'clsx';
 import { performanceMonitor } from './utils/performance-monitor';
 import { cacheManager } from './utils/cache-manager';
 import { scrollToSection, setupScrollObserver } from './utils/scroll-utils';
 import { ThemeContext, useTheme, type Theme } from './contexts/ThemeContext';
 
-// Preload SunViz immediately so shaders can be compiled before first theme switch.
-// Firing the import() at module-eval time means the JS chunk is already parsed
-// and the Three.js WebGL context is initialised before the user ever toggles theme.
-const _sunVizPromise = import('./components/SunViz');
-
-// Lazy load components
+// Lazy load components — only one WebGL viz is ever active at a time
 const GlobeViz  = lazy(() => import('./components/GlobeViz'));
-const SunViz    = lazy(() => _sunVizPromise);   // resolves instantly — already preloaded
+const SunViz    = lazy(() => import('./components/SunViz'));
 const StarfieldBackground = lazy(() => import('./components/StarfieldBackground'));
 const GithubPinnedRepos   = lazy(() => import('./components/GithubPinnedRepos'));
 
@@ -37,7 +32,7 @@ const Reveal: React.FC<{ children: React.ReactNode; delay?: number; className?: 
   <motion.div
     initial={{ opacity: 0, y: 24 }}
     whileInView={{ opacity: 1, y: 0 }}
-    viewport={{ once: true, amount: 0.2 }}
+    viewport={{ once: true, amount: 0.1 }}
     transition={{ duration: 0.6, ease: "easeOut", delay }}
     className={className}
   >
@@ -210,23 +205,19 @@ const SectionWrapper: React.FC<{
 
 const HomeSection: React.FC = memo(() => {
   const { lang } = useLang();
+  const { theme } = useTheme();
 
   // Handler for when globe is fully zoomed out - scroll to next section
   const handleZoomOut = useCallback(() => {
-    console.log('Earth zoomed out - scrolling to projects section');
     scrollToSection('project');
   }, []);
 
   return (
     <section id="home" className="relative w-full h-screen">
       <Suspense fallback={null}>
-        {/* Earth Globe – dark mode */}
-        <div className="viz-globe" style={{ position: 'absolute', inset: 0 }}>
-          <GlobeViz onZoomOut={handleZoomOut} />
-        </div>
-        {/* Sun – light mode */}
-        <div className="viz-sun" style={{ position: 'absolute', inset: 0 }}>
-          <SunViz />
+        {/* Only mount the active viz — never run two WebGL contexts simultaneously */}
+        <div style={{ position: 'absolute', inset: 0 }}>
+          {theme === 'dark' ? <GlobeViz onZoomOut={handleZoomOut} /> : <SunViz />}
         </div>
       </Suspense>
       <div
@@ -620,8 +611,10 @@ const EducationSection: React.FC = memo(() => {
 
 const AboutSection: React.FC = memo(() => {
   const { lang } = useLang();
-  const currentYear = new Date().getFullYear();
-  const currentMonth = new Date().getMonth() + 1; // getMonth() returns 0-11, so add 1
+  const { currentYear, currentMonth } = useMemo(() => {
+    const now = new Date();
+    return { currentYear: now.getFullYear(), currentMonth: now.getMonth() + 1 };
+  }, []);
   const age = currentYear - 2005;
 
   // Calculate student year based on academic year starting in September
@@ -636,9 +629,12 @@ const AboutSection: React.FC = memo(() => {
 
   // Fetch GitHub repos count
   useEffect(() => {
+    const controller = new AbortController();
     const fetchRepos = async () => {
       try {
-        const response = await fetch('https://api.github.com/users/InfinityZero3000/repos?per_page=100&type=all');
+        const response = await fetch('https://api.github.com/users/InfinityZero3000/repos?per_page=100&type=all', {
+          signal: controller.signal,
+        });
 
         if (!response.ok) {
           throw new Error(`GitHub API error: ${response.status}`);
@@ -652,11 +648,14 @@ const AboutSection: React.FC = memo(() => {
           console.error('Invalid GitHub API response:', data);
         }
       } catch (err) {
-        console.error('Failed to fetch GitHub repos:', err);
+        if ((err as Error).name !== 'AbortError') {
+          console.error('Failed to fetch GitHub repos:', err);
+        }
       }
     };
 
     fetchRepos();
+    return () => controller.abort();
   }, []);
 
   return (
@@ -925,6 +924,20 @@ const ResumeSection: React.FC = memo(() => {
   );
 });
 
+const Footer: React.FC = memo(() => {
+  const { lang } = useLang();
+  return (
+    <footer className="w-full pb-32 md:pb-48 pt-16 mt-12 border-t border-dark-700 bg-dark-900/10 text-center text-gray-500 relative z-10 flex flex-col items-center gap-2">
+      <div className="flex items-center gap-2 mb-2 text-brand-500 opacity-50">
+        <Cpu size={20} />
+      </div>
+      <p className="text-sm">
+        &copy; {new Date().getFullYear()} {NAME[lang]}. {lang === Language.EN ? 'All rights reserved.' : 'Mọi bản quyền được bảo lưu.'}
+      </p>
+    </footer>
+  );
+});
+
 // --- Main App ---
 
 export default function App() {
@@ -1040,6 +1053,7 @@ export default function App() {
           <SkillSection />
           <AchievementSection />
           <EducationSection />
+          <Footer />
         </main>
       </div>
     </LangContext.Provider>

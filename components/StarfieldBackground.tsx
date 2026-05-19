@@ -305,9 +305,13 @@ const StarfieldBackground: React.FC = () => {
     };
 
     const handleVisibilityChange = () => {
-      isPaused = document.hidden;
-      // Restart the loop when the tab becomes visible again
-      if (!isPaused) {
+      if (document.hidden) {
+        // Explicitly cancel so the browser doesn't resume the old rAF automatically,
+        // which would create a duplicate loop when we restart below.
+        isPaused = true;
+        cancelAnimationFrame(rafId);
+      } else {
+        isPaused = false;
         lastTimestamp = 0; // reset so first frame isn't skipped
         rafId = requestAnimationFrame(animate);
       }

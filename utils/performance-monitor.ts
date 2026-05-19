@@ -252,11 +252,13 @@ const isDev = typeof window !== 'undefined' && (
   window.location.hostname === '127.0.0.1'
 );
 
-// Auto-record metrics every 5 seconds in development only
+// Auto-record metrics every 5 seconds in development only.
+// Save the ID so Vite HMR can clear the previous interval on hot reload.
+let _devMetricsInterval: ReturnType<typeof setInterval> | undefined;
 if (typeof window !== 'undefined' && isDev) {
-  setInterval(() => {
-    performanceMonitor.recordMetrics();
-  }, 5000);
+  if ((window as any).__devMetricsInterval) clearInterval((window as any).__devMetricsInterval);
+  _devMetricsInterval = setInterval(() => { performanceMonitor.recordMetrics(); }, 5000);
+  (window as any).__devMetricsInterval = _devMetricsInterval;
 }
 
 // Report performance on page unload in development only

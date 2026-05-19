@@ -18,9 +18,9 @@ export const getCurrentSection = (): string => {
   const sections = ['home', 'about', 'project', 'github', 'resume', 'skill', 'achievements', 'education'];
   const scrollPosition = window.scrollY + window.innerHeight / 2;
 
-  // If reached the bottom of the page, return the last section
-  if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 50) {
-    return sections[sections.length - 1];
+  // Use a more generous threshold for bottom detection (checking if we are near the bottom of the page)
+  if (Math.ceil(window.innerHeight + window.scrollY) >= document.documentElement.scrollHeight - 250) {
+    return 'education';
   }
 
   for (let i = sections.length - 1; i >= 0; i--) {

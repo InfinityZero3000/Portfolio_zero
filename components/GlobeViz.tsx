@@ -40,6 +40,8 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
   const [isGlobeReady, setIsGlobeReady] = useState(false);
   const { theme } = useTheme();
   const themeRef = useRef(theme);
+  const initialSizeRef = useRef<{ width: number; height: number } | null>(null);
+  const [hasInitialSize, setHasInitialSize] = useState(false);
 
   // Pause/resume control — shared across effects
   const pausedRef = useRef(false);            // true = animate loop should stop
@@ -89,15 +91,25 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
     return () => clearInterval(interval);
   }, []);
 
-  // Initialize globe (only once on mount or when size changes)
+  // Capture the first usable size for one-time initialization, then only resize
+  // the existing globe on later layout changes.
   useEffect(() => {
-    if (!containerRef.current || !width || !height) return;
+    if (!width || !height) return;
 
-    // Don't recreate if globe already exists and just resizing
-    if (globeRef.current && width && height) {
-      globeRef.current.width(width).height(height);
-      return;
+    if (!initialSizeRef.current) {
+      initialSizeRef.current = { width, height };
+      setHasInitialSize(true);
     }
+
+    if (globeRef.current) {
+      globeRef.current.width(width).height(height);
+    }
+  }, [width, height]);
+
+  // Initialize globe once after the container has a measurable size.
+  useEffect(() => {
+    const initialSize = initialSizeRef.current;
+    if (!containerRef.current || !hasInitialSize || !initialSize) return;
 
     // Clear existing globe only if recreating
     if (globeRef.current) {
@@ -108,6 +120,10 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
     const cleanupTimeouts: number[] = [];
     const cleanupIntervals: number[] = [];
     const cleanupListeners: Array<() => void> = [];
+
+    // Track atmosphere mesh for disposal on cleanup
+    let atmosFadeRafId: number | null = null;
+    let atmosObjects: { mesh: THREE.Mesh; geo: THREE.SphereGeometry; mat: THREE.ShaderMaterial } | null = null;
 
     const registerTimeout = (fn: () => void, delay: number) => {
       const id = window.setTimeout(fn, delay);
@@ -194,8 +210,8 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
       }
 
       // Set dimensions
-      myGlobe.width(width);
-      myGlobe.height(height);
+      myGlobe.width(initialSize.width);
+      myGlobe.height(initialSize.height);
 
       // Load background FIRST - independent of globe data
       try {
@@ -321,15 +337,14 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
         }
       });
 
-      // Set initial view focused on Vietnam with gentle zoom out
-      myGlobe.pointOfView({ lat: 16, lng: 106, altitude: 0.35 }, 0);
+      // Start at the final resting view so cold loads and hard refreshes are
+      // visually stable from the first painted frame.
+      myGlobe.pointOfView({ lat: 16, lng: 106, altitude: 2.1 }, 0);
+      setIsGlobeReady(true);
 
-      // Smooth zoom out animation after a brief delay
+      // Add atmospheric glow layer after the globe is ready.
       registerTimeout(() => {
         if (myGlobe && mounted) {
-          myGlobe.pointOfView({ lat: 16, lng: 106, altitude: 2.1 }, 1800); // Longer easing-like glide
-          setIsGlobeReady(true);
-
           // Add atmospheric glow layer AFTER globe is ready
           registerTimeout(() => {
             if (!mounted) return;
@@ -364,6 +379,7 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
             // Fade in atmosphere with a single rAF-based animation instead of setInterval
             atmosphereMaterial.transparent = true;
             atmosphereMaterial.opacity = 0;
+            atmosObjects = { mesh: atmosphere, geo: atmosphereGeometry, mat: atmosphereMaterial };
             const fadeStart = performance.now();
             const fadeDuration = 600; // ms
             const fadeStep = () => {
@@ -371,9 +387,13 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
               const t = Math.min(elapsed / fadeDuration, 1);
               atmosphereMaterial.opacity = t;
               atmosphereMaterial.needsUpdate = true;
-              if (t < 1) requestAnimationFrame(fadeStep);
+              if (t < 1) {
+                atmosFadeRafId = requestAnimationFrame(fadeStep);
+              } else {
+                atmosFadeRafId = null;
+              }
             };
-            requestAnimationFrame(fadeStep);
+            atmosFadeRafId = requestAnimationFrame(fadeStep);
 
             scene.add(atmosphere);
           }, 500); // Add atmosphere 500ms after zoom starts
@@ -382,6 +402,7 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
 
       // Optimize controls for smooth rotation
       const controls = myGlobe.controls();
+      const camera = myGlobe.camera();
       controls.autoRotate = true; // Enable auto-rotate for dynamic effect
       controls.autoRotateSpeed = 0.25; // Start slower and ramp up
             registerTimeout(() => {
@@ -503,9 +524,8 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
       }
 
       // Optimized animation loop with adaptive frame rate
-      let lastTime = 0;
       let isUserInteracting = false;
-      let inactivityTimer: number | undefined;
+      let inactivityTimer: ReturnType<typeof setTimeout> | undefined;
 
       // Detect user interaction for adaptive rendering
       const onInteractionStart = () => {
@@ -572,7 +592,7 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
       // setAnimationLoop fires at display refresh rate; globeLoop throttles internally.
       renderer.setAnimationLoop(globeLoop);
 
-      // Call onGlobeReady after zoom animation completes
+      // Notify consumers after the initial scene has had time to settle.
       registerTimeout(() => {
         if (onGlobeReady && mounted) {
           onGlobeReady();
@@ -589,6 +609,11 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
 
     return () => {
       mounted = false;
+      // Cancel any in-flight atmosphere fade rAF before anything else
+      if (atmosFadeRafId != null) {
+        cancelAnimationFrame(atmosFadeRafId);
+        atmosFadeRafId = null;
+      }
       cleanupTimeouts.forEach(id => clearTimeout(id));
       cleanupIntervals.forEach(id => clearInterval(id));
       cleanupListeners.forEach(dispose => dispose());
@@ -597,6 +622,12 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
         animIdRef.current = null;
       }
       animFnRef.current = null;
+      // Dispose atmosphere GPU resources
+      if (atmosObjects) {
+        atmosObjects.geo.dispose();
+        atmosObjects.mat.dispose();
+        atmosObjects = null;
+      }
       if (globeRef.current?._destructor) {
         globeRef.current._destructor();
       }
@@ -605,7 +636,7 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
         containerRef.current.innerHTML = '';
       }
     };
-  }, [width, height, textureURLs, deviceCapability, rendererSettings, onGlobeReady, onZoomOut]);
+  }, [hasInitialSize, textureURLs, deviceCapability, rendererSettings, onGlobeReady, onZoomOut]);
 
   // ── Pause / resume control ─────────────────────────────────────────────────
   // Globe should only render when: theme === 'dark' AND home section is visible.

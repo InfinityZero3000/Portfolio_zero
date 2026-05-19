@@ -51,6 +51,10 @@ export function detectDeviceCapability(): DeviceCapability {
     if (memory && memory >= 8 && cores >= 4) {
       isHighEnd = true;
     }
+
+    // Release the probe WebGL context immediately to free the slot
+    // (browsers cap WebGL contexts at ~16 per page)
+    glContext.getExtension('WEBGL_lose_context')?.loseContext();
   }
 
   return {
