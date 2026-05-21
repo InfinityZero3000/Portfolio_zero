@@ -140,6 +140,18 @@ export const PROJECTS: Project[] = [
     image: '/image-project/mom-baby-shop.png',
     link: 'https://github.com/InfinityZero3000/Mom-baby-shop',
     demo: 'https://infinityzero3000.github.io/Mom-baby-shop/'
+  },
+  {
+    id: '11',
+    title: 'FSRSpring (Linguist)',
+    tech: ['Java', 'Spring Boot', 'React', 'TypeScript', 'Vercel', 'TailwindCSS'],
+    description: {
+      [Language.EN]: 'Comprehensive vocabulary learning platform with flashcards, quizzes, speech support, and an enterprise credit system for generative AI features.',
+      [Language.VI]: 'Nền tảng học từ vựng toàn diện với flashcard, bài kiểm tra, hỗ trợ phát âm và hệ thống tín dụng doanh nghiệp cho các tính năng AI thế hệ mới.'
+    },
+    image: '/image-project/linguist.png',
+    link: 'https://github.com/InfinityZero3000/FSRSpring',
+    demo: 'https://linguist-three.vercel.app/'
   }
 ];
 
