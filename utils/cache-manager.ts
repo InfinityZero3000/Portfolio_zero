@@ -23,11 +23,11 @@ class CacheManager {
   private db: IDBDatabase | null = null;
 
   constructor() {
-    this.initIndexedDB();
+    // IndexedDB is initialised lazily the first time it is actually needed
   }
 
   /**
-   * Initialize IndexedDB for large asset caching
+   * Initialize IndexedDB for large asset caching (called lazily)
    */
   private async initIndexedDB(): Promise<void> {
     if (!('indexedDB' in window)) {

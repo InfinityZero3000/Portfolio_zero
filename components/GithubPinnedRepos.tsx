@@ -2,6 +2,8 @@ import React, { useEffect, useState, memo } from 'react';
 import { motion } from 'framer-motion';
 import { Star, GitFork, ExternalLink, Github, RefreshCw, AlertCircle } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
+import { getTranslations } from '../i18n/translations';
+import { Language } from '../types';
 import clsx from 'clsx';
 
 export interface PinnedRepo {
@@ -42,8 +44,9 @@ const cardVariants = {
   show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } },
 };
 
-const RepoCard: React.FC<{ repo: PinnedRepo }> = memo(({ repo }) => {
+const RepoCard: React.FC<{ repo: PinnedRepo; lang: 'EN' | 'VI' }> = memo(({ repo, lang }) => {
   const { theme } = useTheme();
+  const t = getTranslations(lang as Language);
   const langColor =
     repo.primaryLanguage?.color ||
     LANG_COLOR_FALLBACK[repo.primaryLanguage?.name ?? ''] ||
@@ -52,11 +55,11 @@ const RepoCard: React.FC<{ repo: PinnedRepo }> = memo(({ repo }) => {
   const timeAgo = (dateStr: string) => {
     const diff = Date.now() - new Date(dateStr).getTime();
     const days = Math.floor(diff / 86400000);
-    if (days === 0) return 'today';
-    if (days < 30) return `${days}d ago`;
+    if (days === 0) return t.github.today;
+    if (days < 30) return t.github.daysAgo(days);
     const months = Math.floor(days / 30);
-    if (months < 12) return `${months}mo ago`;
-    return `${Math.floor(months / 12)}y ago`;
+    if (months < 12) return t.github.monthsAgo(months);
+    return t.github.yearsAgo(Math.floor(months / 12));
   };
 
   return (
@@ -103,7 +106,7 @@ const RepoCard: React.FC<{ repo: PinnedRepo }> = memo(({ repo }) => {
 
       {/* Description */}
       <p className={clsx('text-sm leading-relaxed line-clamp-2 flex-1', theme === 'dark' ? 'text-gray-400' : 'text-stone-500')}>
-        {repo.description || <span className={clsx('italic', theme === 'dark' ? 'text-gray-600' : 'text-stone-400')}>No description available.</span>}
+        {repo.description || <span className={clsx('italic', theme === 'dark' ? 'text-gray-600' : 'text-stone-400')}>{t.github.noDescription}</span>}
       </p>
 
       {/* Footer */}
@@ -178,20 +181,12 @@ const GithubPinnedRepos: React.FC<{ lang: 'EN' | 'VI' }> = ({ lang }) => {
 
   useEffect(() => { fetchRepos(); }, []);
 
-  const t = {
-    title: lang === 'EN' ? 'Open Source' : 'Mã Nguồn Mở',
-    subtitle: lang === 'EN'
-      ? 'Pinned repositories from my GitHub profile, synced automatically.'
-      : 'Các repo được ghim từ hồ sơ GitHub của tôi, đồng bộ tự động.',
-    viewAll: lang === 'EN' ? 'View All Repositories' : 'Xem tất cả Repo',
-    retry: lang === 'EN' ? 'Retry' : 'Thử lại',
-    errorMsg: lang === 'EN' ? 'Could not load repositories.' : 'Không thể tải danh sách repo.',
-  };
+  const t = getTranslations(lang as Language);
 
   return (
     <div className="space-y-8">
       {/* Subtitle */}
-      <p className={clsx('text-sm', theme === 'dark' ? 'text-gray-400' : 'text-stone-500')}>{t.subtitle}</p>
+      <p className={clsx('text-sm', theme === 'dark' ? 'text-gray-400' : 'text-stone-500')}>{t.github.subtitle}</p>
 
       {/* Loading skeleton */}
       {state === 'loading' && (
@@ -218,13 +213,13 @@ const GithubPinnedRepos: React.FC<{ lang: 'EN' | 'VI' }> = ({ lang }) => {
       {state === 'error' && (
         <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
           <AlertCircle size={40} className="text-brand-600" />
-          <p className="text-gray-400">{t.errorMsg}</p>
+          <p className="text-gray-400">{t.github.errorMsg}</p>
           <p className="text-gray-600 text-xs font-mono">{error}</p>
           <button
             onClick={fetchRepos}
             className={clsx('flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors text-sm hover:border-brand-600', theme === 'dark' ? 'bg-dark-800 hover:bg-dark-700 border-dark-700 text-white' : 'bg-white hover:bg-stone-50 border-stone-200 text-stone-700')}
           >
-            <RefreshCw size={14} /> {t.retry}
+            <RefreshCw size={14} /> {t.github.retry}
           </button>
         </div>
       )}
@@ -239,7 +234,7 @@ const GithubPinnedRepos: React.FC<{ lang: 'EN' | 'VI' }> = ({ lang }) => {
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"
         >
           {repos.map((repo) => (
-            <RepoCard key={repo.name} repo={repo} />
+            <RepoCard key={repo.name} repo={repo} lang={lang} />
           ))}
         </motion.div>
       )}
@@ -253,7 +248,7 @@ const GithubPinnedRepos: React.FC<{ lang: 'EN' | 'VI' }> = ({ lang }) => {
             rel="noopener noreferrer"
             className={clsx('group flex items-center gap-2 px-6 py-3 border rounded-full text-sm transition-all duration-300 hover:border-brand-600 hover:bg-brand-600/10', theme === 'dark' ? 'border-dark-700 text-gray-400 hover:text-white' : 'border-stone-300 text-stone-500 hover:text-brand-600')}
           >
-            {t.viewAll}
+            {t.github.viewAll}
             <ExternalLink size={14} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
           </a>
         </div>

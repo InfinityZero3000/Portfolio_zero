@@ -39,7 +39,8 @@ class PerformanceMonitor {
 
     const measureFPS = (timestamp: number) => {
       if (typeof document !== 'undefined' && document.hidden) {
-        this.rafId = requestAnimationFrame(measureFPS);
+        // Tab hidden — cancel rAF entirely; visibilitychange will restart it
+        this.rafId = null;
         return;
       }
 
@@ -47,13 +48,11 @@ class PerformanceMonitor {
         const delta = timestamp - this.lastFrameTime;
         const fps = 1000 / delta;
         this.fpsFrames.push(fps);
-        
-        // Keep only last 60 frames
         if (this.fpsFrames.length > 60) {
           this.fpsFrames.shift();
         }
       }
-      
+
       this.lastFrameTime = timestamp;
       this.rafId = requestAnimationFrame(measureFPS);
     };
@@ -62,8 +61,18 @@ class PerformanceMonitor {
 
     if (typeof document !== 'undefined' && !this.visibilityHandler) {
       this.visibilityHandler = () => {
-        if (!document.hidden) {
+        if (document.hidden) {
+          // Cancel any pending rAF when tab goes hidden
+          if (this.rafId != null) {
+            cancelAnimationFrame(this.rafId);
+            this.rafId = null;
+          }
+        } else {
+          // Tab became visible again — restart loop
           this.lastFrameTime = 0;
+          if (this.isRunning && this.rafId == null) {
+            this.rafId = requestAnimationFrame(measureFPS);
+          }
         }
       };
       document.addEventListener('visibilitychange', this.visibilityHandler);

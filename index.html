@@ -91,7 +91,9 @@
         margin: 0;
         padding: 0;
         width: 100%;
-        height: 100%;
+        /* height: 100% intentionally removed — it constrains the scroll container
+           to viewport height, causing Lenis to underestimate scrollHeight and
+           preventing scroll from reaching sections below Achievements. */
         overflow-x: clip;
         background-color: #111827;
         color: #ffffff;

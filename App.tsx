@@ -1,12 +1,12 @@
-import React, { useState, createContext, useContext, memo, lazy, Suspense, useEffect, useCallback, useRef, startTransition, useMemo } from 'react';
+import React, { useState, createContext, useContext, memo, lazy, Suspense, useEffect, useCallback, startTransition, useMemo } from 'react';
 import Lenis from 'lenis';
 import { motion, AnimatePresence } from 'framer-motion';
 import { NAV_ITEMS, PROJECTS, SKILLS, ACHIEVEMENTS, EDUCATION_DATA, BIO, NAME } from './constants';
 import { Language } from './types';
+import { getTranslations } from './i18n/translations';
 import { Sun, Moon, Download, Award, GraduationCap, FileText, Github, Linkedin, Mail, MapPin, Calendar, Menu, X, Cpu } from 'lucide-react';
 import clsx from 'clsx';
 import { performanceMonitor } from './utils/performance-monitor';
-import { cacheManager } from './utils/cache-manager';
 import { scrollToSection, setupScrollObserver } from './utils/scroll-utils';
 import { ThemeContext, useTheme, type Theme } from './contexts/ThemeContext';
 
@@ -45,6 +45,7 @@ const Reveal: React.FC<{ children: React.ReactNode; delay?: number; className?: 
 const NavBar: React.FC<{ activeSection: string; onNavigate: (section: string) => void }> = memo(({ activeSection, onNavigate }) => {
   const { lang, toggleLang } = useLang();
   const { theme, toggleTheme } = useTheme();
+  const t = getTranslations(lang);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const handleNavigate = (key: string) => {
@@ -159,7 +160,7 @@ const NavBar: React.FC<{ activeSection: string; onNavigate: (section: string) =>
                 );
               })}
               <div className="mt-2 pt-2 border-t border-dark-700 flex items-center justify-between px-4 py-1">
-                <span className="text-white/40 text-xs uppercase tracking-widest">Language</span>
+                <span className="text-white/40 text-xs uppercase tracking-widest">{t.nav.language}</span>
                 <button
                   onClick={toggleLang}
                   className="px-2.5 py-1.5 rounded-lg text-xs font-mono text-white/60 hover:text-white hover:bg-white/10 transition-all"
@@ -186,10 +187,10 @@ const SectionWrapper: React.FC<{
     className="w-full relative"
   >
     {showHeader && title && (
-      <div className="pt-28 pb-12 px-6 md:px-16 max-w-7xl mx-auto">
+      <div className="pt-24 pb-16 px-6 md:px-16 max-w-7xl mx-auto">
         <Reveal>
-          <header className="mb-12 border-b border-gray-800 pb-4">
-            <h1 className="text-4xl md:text-6xl font-extrabold text-white tracking-tight uppercase">
+          <header className="mb-8 border-b border-gray-800 pb-4">
+            <h1 className="text-4xl md:text-5xl font-extrabold text-white tracking-tight uppercase">
               <span className="text-brand-600">/</span> {title}
             </h1>
           </header>
@@ -206,6 +207,7 @@ const SectionWrapper: React.FC<{
 const HomeSection: React.FC = memo(() => {
   const { lang } = useLang();
   const { theme } = useTheme();
+  const t = getTranslations(lang);
 
   // Handler for when globe is fully zoomed out - scroll to next section
   const handleZoomOut = useCallback(() => {
@@ -242,7 +244,7 @@ const HomeSection: React.FC = memo(() => {
         className="absolute bottom-12 left-6 md:bottom-24 md:left-16 z-10 max-w-2xl pointer-events-none"
       >
         <h2 className="text-brand-500 font-mono text-sm md:text-base mb-2 tracking-widest uppercase">
-          {lang === Language.EN ? 'Software Developer' : 'Lập Trình Viên Phần Mềm'}
+          {t.home.jobTitle}
         </h2>
         <h1 className="text-5xl md:text-8xl font-extrabold text-white leading-none mb-6">
           HELLO <br /> WORLD<span className="text-brand-600">.</span>
@@ -257,23 +259,24 @@ const HomeSection: React.FC = memo(() => {
 
 const ProjectSection: React.FC = memo(() => {
   const { lang } = useLang();
+  const t = getTranslations(lang);
   const [expanded, setExpanded] = useState(false);
 
   const VISIBLE_COUNT = 6; // show 6 cards (3 rows); 3rd row fades out until expanded
   const visibleProjects = expanded ? PROJECTS : PROJECTS.slice(0, VISIBLE_COUNT);
 
   return (
-    <SectionWrapper id="project" title={lang === Language.EN ? 'Projects' : 'Dự Án'}>
+    <SectionWrapper id="project" title={t.project.title}>
       <div className="relative">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {visibleProjects.map((project, idx) => {
             return (
               <motion.div
                 key={project.id}
-                initial={{ opacity: 0, y: 60, scale: 0.95 }}
-                whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                initial={{ opacity: 0, y: 40 }}
+                whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, amount: 0.15 }}
-                transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1], delay: idx * 0.07 }}
+                transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1], delay: idx * 0.05 }}
               >
                 <div
                   className="group flex flex-col gap-4 transition-all duration-300"
@@ -283,6 +286,7 @@ const ProjectSection: React.FC = memo(() => {
                     <img
                       src={project.image}
                       alt={project.title}
+                      loading="lazy"
                       className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500"
                     />
                     {/* Hover overlay with buttons */}
@@ -349,7 +353,7 @@ const ProjectSection: React.FC = memo(() => {
               onClick={() => setExpanded(true)}
               className="flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white px-6 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 shadow-[0_0_20px_rgba(220,38,38,0.3)] hover:shadow-[0_0_28px_rgba(220,38,38,0.5)]"
             >
-              {lang === Language.EN ? 'View All Projects' : 'Xem Tất Cả Dự Án'}
+              {t.project.viewAll}
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
             </button>
             </div>
@@ -363,7 +367,7 @@ const ProjectSection: React.FC = memo(() => {
               onClick={() => setExpanded(false)}
               className="flex items-center gap-2 border border-dark-700 hover:border-brand-600 text-white/60 hover:text-white px-6 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200"
             >
-              {lang === Language.EN ? 'Show Less' : 'Thu Gọn'}
+              {t.project.showLess}
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
             </button>
           </div>
@@ -375,66 +379,49 @@ const ProjectSection: React.FC = memo(() => {
 
 const SkillSection: React.FC = memo(() => {
   const { lang } = useLang();
+  const t = getTranslations(lang);
 
-  // Helper function to get skill level display text and color
   const getSkillLevelInfo = (level: string) => {
-    const levelMap: Record<string, { text: { en: string; vi: string }; color: string; bg: string }> = {
-      'Beginner': {
-        text: { en: 'Beginner', vi: 'Mới bắt đầu' },
-        color: 'text-gray-400',
-        bg: 'bg-gray-900/50'
-      },
-      'Basic': {
-        text: { en: 'Basic', vi: 'Cơ bản' },
-        color: 'text-blue-400',
-        bg: 'bg-blue-900/30'
-      },
-      'Intermediate': {
-        text: { en: 'Intermediate', vi: 'Trung cấp' },
-        color: 'text-yellow-400',
-        bg: 'bg-yellow-900/30'
-      },
-      'Advanced': {
-        text: { en: 'Advanced', vi: 'Nâng cao' },
-        color: 'text-green-400',
-        bg: 'bg-green-900/30'
-      },
-      'Expert': {
-        text: { en: 'Expert', vi: 'Chuyên gia' },
-        color: 'text-brand-400',
-        bg: 'bg-brand-900/30'
-      }
-    };
-
-    const info = levelMap[level] || levelMap['Basic'];
+    const info = SKILL_LEVEL_MAP[level] ?? SKILL_LEVEL_MAP['Basic'];
     return {
-      text: lang === Language.EN ? info.text.en : info.text.vi,
+      text: info.text[lang],
       color: info.color,
-      bg: info.bg
+      bg: info.bg,
+      barColor: info.barColor,
+      width: SKILL_LEVEL_WIDTH[level] ?? 40,
     };
   };
 
   return (
-    <SectionWrapper id="skill" title={lang === Language.EN ? 'Skills' : 'Kỹ Năng'}>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+    <SectionWrapper id="skill" title={t.skills.title}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {SKILLS.map((section, idx) => (
           <Reveal key={idx} delay={idx * 0.05}>
-            <div>
-              <h3 className="text-2xl font-extrabold text-brand-500 mb-6 border-l-4 border-brand-600 pl-4">
+            <div className="bg-dark-800/50 border border-dark-700 rounded-xl p-5 hover:border-brand-600/40 transition-colors duration-300 h-full flex flex-col">
+              <h3 className="text-xs font-bold text-brand-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                <span className="w-0.5 h-3.5 bg-brand-600 rounded-full flex-shrink-0" />
                 {section.category[lang]}
               </h3>
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-4 flex-1">
                 {section.items.map((skill) => {
                   const levelInfo = getSkillLevelInfo(skill.level);
                   return (
-                    <div key={skill.name} className="flex items-center justify-between gap-3 group py-2 border-b border-dark-700/50 last:border-0 transition-all">
-                      <div className="flex items-center gap-3 flex-1">
-                        <div className="w-2 h-2 bg-gray-700 rounded-full group-hover:bg-brand-500 transition-colors" />
-                        <span className="text-base text-gray-300 group-hover:text-white transition-colors font-medium">{skill.name}</span>
+                    <div key={skill.name} className="group">
+                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <span className="text-sm text-gray-300 group-hover:text-white transition-colors font-medium leading-none">{skill.name}</span>
+                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded ${levelInfo.bg} ${levelInfo.color} whitespace-nowrap flex-shrink-0`}>
+                          {levelInfo.text}
+                        </span>
                       </div>
-                      <span className={`text-xs font-semibold px-2.5 py-0.5 rounded ${levelInfo.bg} ${levelInfo.color} border border-current/20 whitespace-nowrap`}>
-                        {levelInfo.text}
-                      </span>
+                      <div className="h-0.5 bg-dark-700 rounded-full overflow-hidden">
+                        <motion.div
+                          className={`h-full rounded-full ${levelInfo.barColor}`}
+                          initial={{ width: 0 }}
+                          whileInView={{ width: `${levelInfo.width}%` }}
+                          viewport={{ once: true }}
+                          transition={{ duration: 0.9, ease: 'easeOut', delay: 0.1 + idx * 0.03 }}
+                        />
+                      </div>
                     </div>
                   );
                 })}
@@ -447,13 +434,26 @@ const SkillSection: React.FC = memo(() => {
   );
 });
 
+// --- Skill level display map (module-level constant — never recreated on render) ---
+const SKILL_LEVEL_MAP: Record<string, { text: { [key in Language]: string }; color: string; bg: string; barColor: string }> = {
+  Beginner:     { text: { [Language.EN]: 'Beginner',     [Language.VI]: 'Mới bắt đầu' }, color: 'text-gray-400',   bg: 'bg-gray-900/50',   barColor: 'bg-gray-500'   },
+  Basic:        { text: { [Language.EN]: 'Basic',         [Language.VI]: 'Cơ bản'       }, color: 'text-blue-400',   bg: 'bg-blue-900/30',   barColor: 'bg-blue-500'   },
+  Intermediate: { text: { [Language.EN]: 'Intermediate',  [Language.VI]: 'Trung cấp'    }, color: 'text-yellow-400', bg: 'bg-yellow-900/30', barColor: 'bg-yellow-500' },
+  Advanced:     { text: { [Language.EN]: 'Advanced',      [Language.VI]: 'Nâng cao'     }, color: 'text-green-400',  bg: 'bg-green-900/30',  barColor: 'bg-green-500'  },
+  Expert:       { text: { [Language.EN]: 'Expert',        [Language.VI]: 'Chuyên gia'   }, color: 'text-brand-400',  bg: 'bg-brand-900/30',  barColor: 'bg-brand-500'  },
+};
+
+const SKILL_LEVEL_WIDTH: Record<string, number> = {
+  Beginner: 20, Basic: 40, Intermediate: 65, Advanced: 85, Expert: 100,
+};
+
 // --- Achievement Section helpers ---
-const CATEGORY_META: Record<string, { label: { en: string; vi: string }; color: string; bg: string; border: string }> = {
-  research:  { label: { en: 'Research',  vi: 'Nghiên Cứu'  }, color: 'text-purple-400',  bg: 'bg-purple-900/30',  border: 'border-purple-500/40' },
-  project:   { label: { en: 'Project',   vi: 'Dự Án'       }, color: 'text-brand-400',   bg: 'bg-brand-900/30',   border: 'border-brand-500/40'  },
-  ai:        { label: { en: 'AI / ML',   vi: 'AI / ML'     }, color: 'text-cyan-400',    bg: 'bg-cyan-900/30',    border: 'border-cyan-500/40'   },
-  education: { label: { en: 'Education', vi: 'Học Vấn'     }, color: 'text-green-400',   bg: 'bg-green-900/30',   border: 'border-green-500/40'  },
-  award:     { label: { en: 'Award',     vi: 'Giải Thưởng' }, color: 'text-yellow-400',  bg: 'bg-yellow-900/30',  border: 'border-yellow-500/40' },
+const CATEGORY_META: Record<string, { label: { [key in Language]: string }; color: string; bg: string; border: string }> = {
+  research:  { label: { [Language.EN]: 'Research',  [Language.VI]: 'Nghiên Cứu'  }, color: 'text-purple-400',  bg: 'bg-purple-900/30',  border: 'border-purple-500/40' },
+  project:   { label: { [Language.EN]: 'Project',   [Language.VI]: 'Dự Án'       }, color: 'text-brand-400',   bg: 'bg-brand-900/30',   border: 'border-brand-500/40'  },
+  ai:        { label: { [Language.EN]: 'AI / ML',   [Language.VI]: 'AI / ML'     }, color: 'text-cyan-400',    bg: 'bg-cyan-900/30',    border: 'border-cyan-500/40'   },
+  education: { label: { [Language.EN]: 'Education', [Language.VI]: 'Học Vấn'     }, color: 'text-green-400',   bg: 'bg-green-900/30',   border: 'border-green-500/40'  },
+  award:     { label: { [Language.EN]: 'Award',     [Language.VI]: 'Giải Thưởng' }, color: 'text-yellow-400',  bg: 'bg-yellow-900/30',  border: 'border-yellow-500/40' },
 };
 
 const AchievementIcon: React.FC<{ icon?: string; size?: number }> = ({ icon, size = 28 }) => {
@@ -479,12 +479,11 @@ const AchievementImage: React.FC<{ src?: string; alt: string }> = ({ src, alt })
   if (!src || failed) return null;
 
   return (
-    <div className="w-full md:w-[360px] lg:w-[420px] flex-shrink-0">
+    <div className="w-full md:w-[280px] lg:w-[340px] flex-shrink-0">
       <div className="rounded-xl overflow-hidden shadow-xl bg-dark-900/30 border border-white/10">
         <img
           src={resolvePublicUrl(src)}
           alt={alt}
-          loading="lazy"
           className="w-full h-auto object-contain"
           onError={() => setFailed(true)}
         />
@@ -495,24 +494,25 @@ const AchievementImage: React.FC<{ src?: string; alt: string }> = ({ src, alt })
 
 const AchievementSection: React.FC = memo(() => {
   const { lang } = useLang();
+  const t = getTranslations(lang);
 
   return (
-    <SectionWrapper id="achievements" title={lang === Language.EN ? 'Achievements' : 'Thành Tựu'}>
+    <SectionWrapper id="achievements" title={t.achievements.title}>
       <div className="relative">
         {/* Vertical timeline line */}
         <div className="absolute left-5 top-0 bottom-0 w-px bg-gradient-to-b from-brand-600/80 via-dark-700 to-transparent hidden md:block" />
 
-        <div className="flex flex-col gap-10">
+        <div className="flex flex-col gap-6">
           {ACHIEVEMENTS.map((item, idx) => {
             const cat = item.category ? CATEGORY_META[item.category] : CATEGORY_META['project'];
-            const catLabel = lang === Language.EN ? cat.label.en : cat.label.vi;
+            const catLabel = cat.label[lang];
             return (
               <motion.div
                 key={item.id}
-                initial={{ opacity: 0, x: -40 }}
-                whileInView={{ opacity: 1, x: 0 }}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, amount: 0.15 }}
-                transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1], delay: idx * 0.08 }}
+                transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1], delay: idx * 0.06 }}
                 className="relative flex gap-0 md:gap-8 items-start"
               >
                 {/* Timeline dot */}
@@ -569,8 +569,9 @@ const AchievementSection: React.FC = memo(() => {
 
 const GithubSection: React.FC = memo(() => {
   const { lang } = useLang();
+  const t = getTranslations(lang);
   return (
-    <SectionWrapper id="github" title={lang === Language.EN ? 'Repository' : 'Kho Lưu Trữ'}>
+    <SectionWrapper id="github" title={t.github.title}>
       <Suspense fallback={
         <div className="flex items-center justify-center py-20">
           <div className="w-8 h-8 border-2 border-brand-600 border-t-transparent rounded-full animate-spin" />
@@ -584,8 +585,9 @@ const GithubSection: React.FC = memo(() => {
 
 const EducationSection: React.FC = memo(() => {
   const { lang } = useLang();
+  const t = getTranslations(lang);
   return (
-    <SectionWrapper id="education" title={lang === Language.EN ? 'Education' : 'Học Vấn'}>
+    <SectionWrapper id="education" title={t.education.title}>
       <div className="space-y-8 max-w-3xl">
         {EDUCATION_DATA.map((item, idx) => (
           <Reveal key={item.id} delay={idx * 0.08}>
@@ -611,6 +613,7 @@ const EducationSection: React.FC = memo(() => {
 
 const AboutSection: React.FC = memo(() => {
   const { lang } = useLang();
+  const t = getTranslations(lang);
   const { currentYear, currentMonth } = useMemo(() => {
     const now = new Date();
     return { currentYear: now.getFullYear(), currentMonth: now.getMonth() + 1 };
@@ -627,25 +630,30 @@ const AboutSection: React.FC = memo(() => {
 
   const [repoCount, setRepoCount] = useState<number>(8);
 
-  // Fetch GitHub repos count
+  // Fetch GitHub repos count (cached in sessionStorage for 30 min)
   useEffect(() => {
     const controller = new AbortController();
+    const CACHE_KEY = 'gh_repo_count';
+    const CACHE_TTL = 30 * 60 * 1000;
+
     const fetchRepos = async () => {
+      try {
+        const raw = sessionStorage.getItem(CACHE_KEY);
+        if (raw) {
+          const { count, ts } = JSON.parse(raw);
+          if (Date.now() - ts < CACHE_TTL) { setRepoCount(count); return; }
+        }
+      } catch { /* ignore parse errors */ }
+
       try {
         const response = await fetch('https://api.github.com/users/InfinityZero3000/repos?per_page=100&type=all', {
           signal: controller.signal,
         });
-
-        if (!response.ok) {
-          throw new Error(`GitHub API error: ${response.status}`);
-        }
-
+        if (!response.ok) throw new Error(`GitHub API error: ${response.status}`);
         const data = await response.json();
-
         if (Array.isArray(data)) {
           setRepoCount(data.length);
-        } else {
-          console.error('Invalid GitHub API response:', data);
+          try { sessionStorage.setItem(CACHE_KEY, JSON.stringify({ count: data.length, ts: Date.now() })); } catch { /* quota */ }
         }
       } catch (err) {
         if ((err as Error).name !== 'AbortError') {
@@ -659,10 +667,10 @@ const AboutSection: React.FC = memo(() => {
   }, []);
 
   return (
-    <SectionWrapper id="about" title={lang === Language.EN ? 'About Me' : 'Về Tôi'}>
-      <Reveal className="max-w-6xl mx-auto space-y-12">
+    <SectionWrapper id="about" title={t.about.title}>
+      <Reveal className="max-w-6xl mx-auto space-y-10">
         {/* Profile Header */}
-        <div className="flex flex-col lg:flex-row gap-8 items-start">
+        <div className="flex flex-col lg:flex-row gap-10 items-start">
           <div className="flex-1 space-y-6">
             <div>
               <h2 className="text-4xl font-extrabold text-white mb-2">{NAME[lang]}</h2>
@@ -680,39 +688,23 @@ const AboutSection: React.FC = memo(() => {
             <div className="flex flex-wrap gap-4 text-gray-400">
               <div className="flex items-center gap-2">
                 <Calendar size={18} className="text-brand-500" />
-                <span>{lang === Language.EN ? `Born in 2005 (${age} years old)` : `Sinh năm 2005 (${age} tuổi)`}</span>
+                <span>{t.about.bornIn(age)}</span>
               </div>
               <div className="flex items-center gap-2">
                 <GraduationCap size={18} className="text-brand-500" />
-                <span>{lang === Language.EN ? `Year ${studentYear} Student` : `Sinh viên năm ${studentYear}`}</span>
+                <span>{t.about.studentYear(studentYear)}</span>
               </div>
               <div className="flex items-center gap-2">
                 <MapPin size={18} className="text-brand-500" />
-                <span>Ho Chi Minh City, Vietnam</span>
+                <span>{t.about.location}</span>
               </div>
             </div>
 
-            <div className="text-lg text-gray-300 leading-relaxed space-y-4">
-              <p>
-                {lang === Language.EN
-                  ? "Hello! I'm Thang, a passionate Software Developer currently pursuing my degree in Software Technology at Ho Chi Minh City University of Industry and Trade. My journey into the world of programming started with a curiosity about how things work behind the scenes, and it has evolved into a deep passion for creating meaningful digital experiences."
-                  : "Xin chào! Tôi là Thắng, một Lập Trình Viên Phần Mềm đầy nhiệt huyết đang theo học ngành Công nghệ Phần mềm tại Trường Đại học Công Thương TP.HCM. Hành trình lập trình của tôi bắt đầu từ sự tò mò về cách mọi thứ hoạt động, và đã phát triển thành niềm đam mê sâu sắc trong việc tạo ra những trải nghiệm kỹ thuật số có ý nghĩa."}
-              </p>
-              <p>
-                {lang === Language.EN
-                  ? "I specialize in building modern web applications using React and TypeScript, with a strong focus on creating intuitive user interfaces and seamless experiences. From e-commerce platforms to machine learning applications, I love tackling complex problems and turning ideas into reality through clean, efficient code."
-                  : "Tôi chuyên xây dựng các ứng dụng web hiện đại sử dụng React và TypeScript, với trọng tâm vào việc tạo ra giao diện người dùng trực quan và trải nghiệm mượt mà. Từ nền tảng thương mại điện tử đến ứng dụng học máy, tôi yêu thích việc giải quyết các vấn đề phức tạp và biến ý tưởng thành hiện thực thông qua code sạch và hiệu quả."}
-              </p>
-              <p>
-                {lang === Language.EN
-                  ? "Beyond frontend development, I'm deeply interested in AI and machine learning technologies. I've worked on projects ranging from spam email classification systems to customer emotion recognition, always eager to explore the intersection of software engineering and artificial intelligence. My goal is to bridge the gap between innovative technology and practical, user-centered solutions."
-                  : "Ngoài phát triển frontend, tôi rất quan tâm đến công nghệ AI và học máy. Tôi đã làm việc trên các dự án từ hệ thống phân loại email spam đến nhận diện cảm xúc khách hàng, luôn háo hức khám phá sự giao thoa giữa kỹ thuật phần mềm và trí tuệ nhân tạo. Mục tiêu của tôi là kết nối công nghệ đổi mới với các giải pháp thực tế, lấy người dùng làm trung tâm."}
-              </p>
-              <p>
-                {lang === Language.EN
-                  ? "Outside of coding, I'm constantly learning and staying up-to-date with the latest tech trends. Whether it's diving into new frameworks, optimizing performance, or exploring creative ways to enhance user experience, I'm driven by a genuine love for problem-solving and innovation. For me, writing code is more than a job—it's a craft that I'm constantly refining."
-                  : "Ngoài việc lập trình, tôi không ngừng học hỏi và cập nhật các xu hướng công nghệ mới nhất. Dù là tìm hiểu các framework mới, tối ưu hiệu suất, hay khám phá các cách sáng tạo để nâng cao trải nghiệm người dùng, tôi được thúc đẩy bởi tình yêu thực sự với việc giải quyết vấn đề và đổi mới. Với tôi, viết code không chỉ là công việc, đó là một nghệ thuật mà tôi không ngừng trau dồi."}
-              </p>
+            <div className="text-base text-gray-300 leading-relaxed space-y-4">
+              <p>{t.about.bio1}</p>
+              <p>{t.about.bio2}</p>
+              <p>{t.about.bio3}</p>
+              <p>{t.about.bio4}</p>
             </div>
 
             {/* Social Links */}
@@ -749,11 +741,11 @@ const AboutSection: React.FC = memo(() => {
           <div className="lg:w-80 w-full space-y-4">
             <div className="bg-gradient-to-br from-dark-800 to-dark-900 p-6 rounded-2xl border border-dark-700">
               <h3 className="text-white font-extrabold mb-4 text-lg">
-                {lang === Language.EN ? 'Quick Stats' : 'Thống Kê'}
+                {t.about.quickStats}
               </h3>
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-400">{lang === Language.EN ? 'GitHub Repos' : 'Repo GitHub'}</span>
+                  <span className="text-gray-400">{t.about.githubRepos}</span>
                   <a
                     href="https://github.com/InfinityZero3000?tab=repositories"
                     target="_blank"
@@ -764,11 +756,11 @@ const AboutSection: React.FC = memo(() => {
                   </a>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-400">{lang === Language.EN ? 'Technologies' : 'Công Nghệ'}</span>
+                  <span className="text-gray-400">{t.about.technologies}</span>
                   <span className="text-2xl font-bold text-white">15+</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-400">{lang === Language.EN ? 'Study Year' : 'Năm Học'}</span>
+                  <span className="text-gray-400">{t.about.studyYear}</span>
                   <span className="text-2xl font-bold text-brand-500">{studentYear}</span>
                 </div>
               </div>
@@ -776,7 +768,7 @@ const AboutSection: React.FC = memo(() => {
 
             <div className="p-6 border-l-4 border-brand-600 bg-dark-800/50 rounded-r-xl">
               <p className="italic text-gray-400 text-sm">
-                "Code is poetry, written for machines but designed for humans."
+                {t.about.codeQuote}
               </p>
             </div>
           </div>
@@ -788,20 +780,15 @@ const AboutSection: React.FC = memo(() => {
 
 const ResumeSection: React.FC = memo(() => {
   const { lang } = useLang();
-  const [iframeInteractive, setIframeInteractive] = useState(false);
-  const interactiveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const t = getTranslations(lang);
 
-  // Define resume URL safely handling env var issues
   const envResumeUrl = import.meta.env?.VITE_RESUME_URL;
-  // If env var contains auto-download parameter or is unexpected, default to local file 
-  const rawResumeUrl = (envResumeUrl && typeof envResumeUrl === 'string' && !envResumeUrl.includes('export=download')) 
-    ? envResumeUrl 
+  const rawResumeUrl = (envResumeUrl && typeof envResumeUrl === 'string' && !envResumeUrl.includes('export=download'))
+    ? envResumeUrl
     : '/NguyenHuuThang_Resume.pdf';
 
-  // Always embed local PDF to avoid external URL failures
   const localPdfUrl = '/NguyenHuuThang_Resume.pdf#toolbar=1&navpanes=1&scrollbar=1';
 
-  // For "Open in New Tab": use Google Drive preview if configured, else local
   const viewUrl = rawResumeUrl.includes('drive.google.com')
     ? rawResumeUrl.replace(
         /drive\.google\.com\/file\/d\/([^/]+)\/(view|edit)(.*)/,
@@ -809,34 +796,8 @@ const ResumeSection: React.FC = memo(() => {
       )
     : rawResumeUrl;
 
-  // For download
-  const downloadUrl = rawResumeUrl.includes('drive.google.com')
-    ? rawResumeUrl.replace(/drive\.google\.com\/file\/d\/([^/]+)\/.*/, 'drive.google.com/uc?export=download&id=$1')
-    : rawResumeUrl;
-
-  // Forward wheel events to Lenis so page still scrolls when cursor is over iframe
-  const handleOverlayWheel = useCallback((e: React.WheelEvent) => {
-    const lenis = (window as any).__lenis;
-    if (lenis) {
-      lenis.scrollTo(window.scrollY + e.deltaY * 2, { immediate: false, duration: 0.4 });
-    } else {
-      window.scrollBy({ top: e.deltaY, behavior: 'smooth' });
-    }
-  }, []);
-
-  const handleOverlayClick = useCallback(() => {
-    setIframeInteractive(true);
-    if (interactiveTimerRef.current) clearTimeout(interactiveTimerRef.current);
-    interactiveTimerRef.current = setTimeout(() => setIframeInteractive(false), 8000);
-  }, []);
-
-  const handleContainerMouseLeave = useCallback(() => {
-    if (interactiveTimerRef.current) clearTimeout(interactiveTimerRef.current);
-    setIframeInteractive(false);
-  }, []);
-
   return (
-    <SectionWrapper id="resume" title={lang === Language.EN ? 'Resume' : 'Hồ Sơ'}>
+    <SectionWrapper id="resume" title={t.resume.title}>
       <Reveal className="flex flex-col items-center justify-center space-y-6">
         <div className="w-full max-w-5xl">
           <div className="mb-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -846,12 +807,10 @@ const ResumeSection: React.FC = memo(() => {
               </div>
               <div>
                 <h2 className="text-2xl font-extrabold text-white">
-                  {lang === Language.EN ? 'My Resume' : 'Bản Hồ Sơ'}
+                  {t.resume.heading}
                 </h2>
                 <p className="text-sm text-gray-400 mt-1">
-                  {lang === Language.EN
-                    ? 'Click on the PDF to interact with links'
-                    : 'Nhấp vào PDF để tương tác với các liên kết'}
+                  {t.resume.openHint}
                 </p>
               </div>
             </div>
@@ -862,7 +821,7 @@ const ResumeSection: React.FC = memo(() => {
                 className="inline-flex items-center gap-2 bg-dark-800 hover:bg-dark-700 text-white px-4 py-2 rounded-lg font-medium transition-all border border-dark-700 hover:border-brand-600"
               >
                 <Download size={18} />
-                {lang === Language.EN ? 'Download' : 'Tải về'}
+                {t.resume.download}
               </a>
               <a
                 href={viewUrl}
@@ -871,51 +830,39 @@ const ResumeSection: React.FC = memo(() => {
                 className="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg font-medium transition-all shadow-lg hover:shadow-brand-600/50"
               >
                 <FileText size={18} />
-                {lang === Language.EN ? 'Open in New Tab' : 'Mở tab mới'}
+                {t.resume.openInNewTab}
               </a>
             </div>
           </div>
 
-          {/* Iframe container with scroll-trap fix — A4 aspect ratio (210:297), capped to viewport */}
+          {/* iframe is pointer-events:none so wheel events pass through to Lenis at window level */}
           <div
             className="bg-dark-800 border border-dark-700 rounded-2xl overflow-hidden shadow-2xl relative mx-auto"
             style={{ height: 'calc(100vh - 10rem)', width: '100%' }}
-            onMouseLeave={handleContainerMouseLeave}
           >
             <iframe
               title="resume-pdf"
               src={localPdfUrl}
               className="absolute inset-0 w-full h-full"
-              style={{ border: 'none', pointerEvents: iframeInteractive ? 'all' : 'none' }}
+              style={{ border: 'none', pointerEvents: 'none' }}
               allow="fullscreen"
             />
-            {/* Overlay: intercepts wheel events → forwards to page scroll; click → activates iframe */}
-            {!iframeInteractive && (
-              <div
-                className="absolute inset-0 z-10 flex items-end justify-center pb-4 cursor-pointer"
-                onWheel={handleOverlayWheel}
-                onClick={handleOverlayClick}
+            {/* pointer-events:none overlay — wheel events fall through to window → Lenis handles page scroll */}
+            <div className="absolute inset-0 z-10 flex items-end justify-center pb-4 pointer-events-none">
+              <a
+                href={viewUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="pointer-events-auto bg-dark-900/80 backdrop-blur-sm text-white/60 hover:text-white/90 text-xs px-3 py-1.5 rounded-full border border-dark-700 transition-colors select-none"
               >
-                <span className="bg-dark-900/80 backdrop-blur-sm text-white/60 text-xs px-3 py-1.5 rounded-full border border-dark-700 pointer-events-none select-none">
-                  {lang === Language.EN ? 'Click to interact with PDF' : 'Nhấp để tương tác với PDF'}
-                </span>
-              </div>
-            )}
-            {iframeInteractive && (
-              <button
-                className="absolute top-2 right-2 z-10 bg-dark-900/80 backdrop-blur-sm text-white/60 hover:text-white text-xs px-3 py-1.5 rounded-full border border-dark-700 transition-colors"
-                onClick={() => setIframeInteractive(false)}
-              >
-                {lang === Language.EN ? '↑ Scroll page' : '↑ Cuộn trang'}
-              </button>
-            )}
+                {t.resume.openPdfNewTab}
+              </a>
+            </div>
           </div>
 
           <div className="mt-4 p-4 bg-dark-800/50 border border-dark-700 rounded-lg">
             <p className="text-sm text-gray-400 text-center">
-              {lang === Language.EN
-                ? 'Tip: Click the PDF to interact with links. Click "↑ Scroll page" to return to page scrolling.'
-                : 'Mẹo: Nhấp vào PDF để tương tác. Nhấp "↑ Cuộn trang" để cuộn trang trở lại.'}
+              {t.resume.tip}
             </p>
           </div>
         </div>
@@ -926,13 +873,14 @@ const ResumeSection: React.FC = memo(() => {
 
 const Footer: React.FC = memo(() => {
   const { lang } = useLang();
+  const t = getTranslations(lang);
   return (
     <footer className="w-full pb-32 md:pb-48 pt-16 mt-12 border-t border-dark-700 bg-dark-900/10 text-center text-gray-500 relative z-10 flex flex-col items-center gap-2">
       <div className="flex items-center gap-2 mb-2 text-brand-500 opacity-50">
         <Cpu size={20} />
       </div>
       <p className="text-sm">
-        &copy; {new Date().getFullYear()} {NAME[lang]}. {lang === Language.EN ? 'All rights reserved.' : 'Mọi bản quyền được bảo lưu.'}
+        &copy; {new Date().getFullYear()} {NAME[lang]}. {t.footer.rights}
       </p>
     </footer>
   );
@@ -988,15 +936,27 @@ export default function App() {
     // Expose lenis to scroll-utils via window for nav links
     (window as any).__lenis = lenis;
 
-    let rafId: number;
+    let rafId: number | null = null;
     const raf = (time: number) => {
       lenis.raf(time);
       rafId = requestAnimationFrame(raf);
     };
-    rafId = requestAnimationFrame(raf);
+
+    // Pause the Lenis loop when the tab is hidden — no need to drive smooth scroll in background
+    const onVisChange = () => {
+      if (document.hidden) {
+        if (rafId != null) { cancelAnimationFrame(rafId); rafId = null; }
+      } else {
+        if (rafId == null) rafId = requestAnimationFrame(raf);
+      }
+    };
+    document.addEventListener('visibilitychange', onVisChange);
+
+    if (!document.hidden) rafId = requestAnimationFrame(raf);
 
     return () => {
-      cancelAnimationFrame(rafId);
+      if (rafId != null) cancelAnimationFrame(rafId);
+      document.removeEventListener('visibilitychange', onVisChange);
       lenis.destroy();
       (window as any).__lenis = null;
     };
@@ -1006,18 +966,8 @@ export default function App() {
   useEffect(() => {
     const isDev = import.meta.env.DEV;
 
-    // Log performance metrics on mount
     if (isDev) {
       console.log('[Performance] App initialized');
-    }
-
-    // Periodic cache cleanup
-    const cleanupInterval = setInterval(() => {
-      cacheManager.evictOldEntries();
-    }, 5 * 60 * 1000); // Every 5 minutes
-
-    // Show performance summary in development
-    if (isDev) {
       setTimeout(() => {
         const summary = performanceMonitor.getSummary();
         console.log('[Performance Summary]', summary);
@@ -1026,7 +976,6 @@ export default function App() {
     }
 
     return () => {
-      clearInterval(cleanupInterval);
       performanceMonitor.stop();
     };
   }, []);

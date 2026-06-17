@@ -32,7 +32,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
-  position: relative;
+  /* position: relative removed — unnecessary and can create scroll container conflicts */
 }
 
 /* Ensure fixed elements stay fixed during scroll */
@@ -81,15 +81,12 @@ nav[class*="fixed"] {
   background: #b91c1c;
 }
 
-/* Optimize images */
-img {
-  content-visibility: auto;
-}
+/* content-visibility: auto on img removed — it is designed for block layout containers,
+   not replaced elements. On img with lazy loading it can cause the browser to report 0
+   height for off-screen images, corrupting Lenis scroll-limit calculation. */
 
-/* Reduce repaints on hover effects */
-a, button {
-  will-change: opacity, background-color;
-}
+/* will-change on a/button removed — promoting every interactive element to its own
+   compositor layer wastes GPU memory and can confuse scroll-container detection. */
 
 /* ============================================
    LIGHT THEME OVERRIDES

@@ -159,9 +159,9 @@ export const SKILLS: SkillCategory[] = [
   {
     category: { [Language.EN]: 'Frontend', [Language.VI]: 'Frontend' },
     items: [
-      { name: 'React.js', level: SkillLevel.BEGINNER },
-      { name: 'Next.js', level: SkillLevel.BEGINNER },
-      { name: 'Tailwind CSS', level: SkillLevel.BEGINNER },
+      { name: 'React.js', level: SkillLevel.BASIC },
+      { name: 'Next.js', level: SkillLevel.BASIC },
+      { name: 'Tailwind CSS', level: SkillLevel.BASIC },
       { name: 'Bootstrap', level: SkillLevel.BASIC }
     ]
   },
@@ -178,8 +178,8 @@ export const SKILLS: SkillCategory[] = [
     category: { [Language.EN]: 'DevOps', [Language.VI]: 'Vận Hành' },
     items: [
       { name: 'Docker', level: SkillLevel.INTERMEDIATE },
-      { name: 'CI/CD Pipelines', level: SkillLevel.BASIC },
-      { name: 'GitHub Actions', level: SkillLevel.BASIC }
+      { name: 'CI/CD Pipelines', level: SkillLevel.INTERMEDIATE },
+      { name: 'GitHub Actions', level: SkillLevel.INTERMEDIATE }
     ]
   },
   {
@@ -189,7 +189,7 @@ export const SKILLS: SkillCategory[] = [
       { name: 'TensorFlow', level: SkillLevel.BASIC },
       { name: 'Scikit-learn', level: SkillLevel.INTERMEDIATE },
       { name: 'Hugging Face', level: SkillLevel.INTERMEDIATE },
-      { name: 'Transformers', level: SkillLevel.INTERMEDIATE },
+      { name: 'Transformers', level: SkillLevel.BASIC },
       { name: 'LLM Fine-tuning', level: SkillLevel.BASIC },
     ]
   },
@@ -199,8 +199,8 @@ export const SKILLS: SkillCategory[] = [
       { name: 'BERT / PhoBERT', level: SkillLevel.INTERMEDIATE },
       { name: 'RAG Pipelines', level: SkillLevel.INTERMEDIATE },
       { name: 'Knowledge Graph', level: SkillLevel.INTERMEDIATE },
-      { name: 'LangChain / LangGraph', level: SkillLevel.INTERMEDIATE },
-      { name: 'CNN / Vision Transformer', level: SkillLevel.INTERMEDIATE },
+      { name: 'LangChain / LangGraph', level: SkillLevel.BASIC },
+      { name: 'CNN / Vision Transformer', level: SkillLevel.BASIC },
       { name: 'NLP', level: SkillLevel.INTERMEDIATE },
     ]
   },
@@ -208,7 +208,7 @@ export const SKILLS: SkillCategory[] = [
     category: { [Language.EN]: 'Data & Databases', [Language.VI]: 'Dữ Liệu & Cơ Sở Dữ Liệu' },
     items: [
       { name: 'PostgreSQL', level: SkillLevel.INTERMEDIATE },
-      { name: 'SQL Server', level: SkillLevel.INTERMEDIATE },
+      { name: 'SQL Server', level: SkillLevel.BASIC },
       { name: 'MongoDB', level: SkillLevel.INTERMEDIATE },
       { name: 'Redis', level: SkillLevel.BASIC },
     ]

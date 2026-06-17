@@ -269,12 +269,21 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
       renderer.powerPreference = rendererSettings.powerPreference as any;
 
       // Performance optimizations
-      renderer.shadowMap.enabled = false; // Disable shadows for better performance
-      renderer.physicallyCorrectLights = false; // Faster lighting calculations
+      renderer.shadowMap.enabled = false;
+      // Three.js r149+: useLegacyLights replaces physicallyCorrectLights (inverted logic)
+      if ('useLegacyLights' in renderer) {
+        (renderer as any).useLegacyLights = true;
+      } else {
+        (renderer as any).physicallyCorrectLights = false;
+      }
 
-      // Force high quality output with proper encoding
-      (renderer as any).outputEncoding = 3001; // sRGB color space for accurate colors
-      (renderer as any).toneMapping = 4; // ACES Filmic tone mapping for better visuals
+      // Three.js r150+: outputColorSpace replaces outputEncoding
+      if ('outputColorSpace' in renderer) {
+        (renderer as any).outputColorSpace = 'srgb';
+      } else {
+        (renderer as any).outputEncoding = 3001;
+      }
+      (renderer as any).toneMapping = 4; // THREE.ACESFilmicToneMapping
       (renderer as any).toneMappingExposure = 1.0;
 
       // Additional performance optimizations
@@ -750,16 +759,17 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
       className="w-full h-full absolute inset-0 z-0"
       style={{
         overflow: 'hidden',
-        transform: 'translateZ(0)', // Force hardware acceleration
-        willChange: 'transform', // Optimize for smooth animations
-        backfaceVisibility: 'hidden', // Improve rendering performance
-        WebkitFontSmoothing: 'antialiased', // Smoother rendering
-        background: 'transparent', // Ensure container is transparent
-        backgroundColor: 'transparent', // No background color
-        opacity: isGlobeReady ? 1 : 0, // Fade in effect
-        filter: isGlobeReady ? 'blur(0px) scale(1)' : 'blur(6px) scale(0.985)', // Subtle focus/scale pop
-        transition: 'opacity 1.2s ease, filter 1.4s ease', // Smooth fade + deblur
-        pointerEvents: 'auto', // Allow interactions with globe
+        backfaceVisibility: 'hidden',
+        background: 'transparent',
+        backgroundColor: 'transparent',
+        opacity: isGlobeReady ? 1 : 0,
+        // scale() is a transform function, not a CSS filter function — keep them separate
+        filter: isGlobeReady ? 'none' : 'blur(6px)',
+        transform: isGlobeReady ? 'translateZ(0)' : 'translateZ(0) scale(0.985)',
+        // Drop willChange once the globe is stable to avoid a permanent compositing layer
+        willChange: isGlobeReady ? 'auto' : 'transform',
+        transition: 'opacity 1.2s ease, filter 1.4s ease, transform 1.4s ease',
+        pointerEvents: 'auto',
       }}
 
     />
