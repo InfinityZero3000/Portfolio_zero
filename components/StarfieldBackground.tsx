@@ -10,20 +10,6 @@ interface Star {
   opacity: number;
   baseOpacity: number;
   layer: 1 | 2 | 3;
-  vx: number;
-  vy: number;
-}
-
-interface ShootingStar {
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-  length: number;
-  opacity: number;
-  life: number;
-  maxLife: number;
-  invSpeed: number; // pre-computed 1/speed — avoids Math.sqrt per frame
 }
 
 // Pre-computed color strings at module level — zero per-frame string allocation for star colors
@@ -73,7 +59,14 @@ const StarfieldBackground: React.FC = () => {
     };
     resizeCanvas();
     let resizeTimer: ReturnType<typeof setTimeout>;
-    const onResize = () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(resizeCanvas, 200); };
+    let requestStaticDraw = () => {};
+    const onResize = () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        resizeCanvas();
+        requestStaticDraw();
+      }, 200);
+    };
     window.addEventListener('resize', onResize);
 
     // --- Stars ---
@@ -92,81 +85,21 @@ const StarfieldBackground: React.FC = () => {
         opacity: baseOpacity,
         baseOpacity,
         layer,
-        vx: (Math.random() - 0.5) * 0.08 * layer,
-        vy: (Math.random() - 0.5) * 0.04 * layer,
       });
     }
 
-    // --- Shooting stars ---
-    const shootingStars: ShootingStar[] = [];
-
-    const spawnShootingStar = () => {
-      const angle = (Math.random() * 30 + 15) * (Math.PI / 180);
-      const speed = Math.random() * 8 + 6;
-      const vx = Math.cos(angle) * speed;
-      const vy = Math.sin(angle) * speed;
-      shootingStars.push({
-        x: Math.random() * W * 0.8,
-        y: Math.random() * H * 0.3,
-        vx, vy,
-        length: Math.random() * 120 + 60,
-        opacity: 1,
-        life: 0,
-        maxLife: Math.random() * 40 + 30,
-        invSpeed: 1 / speed,
-      });
-    };
-
-    let shootingStarTimeout: ReturnType<typeof setTimeout>;
-    const scheduleNextShootingStar = () => {
-      shootingStarTimeout = setTimeout(() => {
-        if (!document.hidden) spawnShootingStar();
-        scheduleNextShootingStar();
-      }, Math.random() * 4000 + 4000);
-    };
-    scheduleNextShootingStar();
-
-    // --- Mouse state ---
-    const mouse = { x: -9999, y: -9999 };
-    const REPEL_RADIUS = isMobile ? 80 : 130;
-    const REPEL_STRENGTH = isMobile ? 18 : 30;
-    const CONSTELLATION_RADIUS = isMobile ? 100 : 160;
-
-    const onMouseMove = (e: MouseEvent) => { mouse.x = e.clientX; mouse.y = e.clientY; };
-    const onMouseLeave = () => { mouse.x = -9999; mouse.y = -9999; };
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseleave', onMouseLeave);
-
     // --- Scroll parallax ---
-    let scrollY = window.scrollY;
-    const onScroll = () => { scrollY = window.scrollY; };
-    window.addEventListener('scroll', onScroll, { passive: true });
+    const scrollY = window.scrollY;
 
     // --- Pre-allocated structures — zero per-frame heap allocations ---
     const BUCKET_COUNT = 11; // opacity quantized to 0.0, 0.1, ..., 1.0
     const dotBuckets: Star[][] = Array.from({ length: BUCKET_COUNT }, () => []);
     const glowBuckets: Star[][] = Array.from({ length: BUCKET_COUNT }, () => []);
-    const nearby: Star[] = []; // reused for constellation, never reallocated
 
-    // --- Animation loop ---
+    // --- Static draw ---
     let rafId: number;
-    let frame = 0;
-    let lastTimestamp = 0;
-    const TARGET_FPS = 30; // 30fps is smooth enough for a decorative background
-    const FRAME_MS = 1000 / TARGET_FPS;
-    const REPEL_RADIUS_SQ = REPEL_RADIUS * REPEL_RADIUS;
-    const CONSTELLATION_RADIUS_SQ = CONSTELLATION_RADIUS * CONSTELLATION_RADIUS;
-    const CONSTELLATION_LINK_SQ = (CONSTELLATION_RADIUS * 0.7) * (CONSTELLATION_RADIUS * 0.7);
 
-    const animate = (timestamp: number) => {
-      const elapsed = timestamp - lastTimestamp;
-      if (elapsed < FRAME_MS) {
-        rafId = requestAnimationFrame(animate);
-        return;
-      }
-      lastTimestamp = timestamp - (elapsed % FRAME_MS);
-      frame++;
-
+    const draw = () => {
       ctx.clearRect(0, 0, W, H);
 
       const scrollOffsets = [0, scrollY * 0.015, scrollY * 0.03, scrollY * 0.06];
@@ -179,38 +112,11 @@ const StarfieldBackground: React.FC = () => {
       }
 
       for (const star of stars) {
-        // Drift
-        star.baseX += star.vx;
-        star.baseY += star.vy;
-        if (star.baseX < 0) star.baseX = W;
-        if (star.baseX > W) star.baseX = 0;
-        if (star.baseY < 0) star.baseY = H;
-        if (star.baseY > H) star.baseY = 0;
-
-        let tx = star.baseX;
-        let ty = star.baseY - scrollOffsets[star.layer];
-
-        // Mouse repulsion
-        const dx = tx - mouse.x;
-        const dy = ty - mouse.y;
-        const distSq = dx * dx + dy * dy;
-        if (distSq < REPEL_RADIUS_SQ && distSq > 0) {
-          const dist = Math.sqrt(distSq);
-          const force = (REPEL_RADIUS - dist) / REPEL_RADIUS;
-          const pushStr = force * REPEL_STRENGTH * (star.layer * 0.4 + 0.6);
-          tx += (dx / dist) * pushStr;
-          ty += (dy / dist) * pushStr;
-          star.opacity = Math.min(1, star.baseOpacity + force * 0.5);
-        } else {
-          star.opacity += (star.baseOpacity - star.opacity) * 0.05;
-        }
+        const tx = star.baseX;
+        const ty = star.baseY - scrollOffsets[star.layer];
+        star.opacity += (star.baseOpacity - star.opacity) * 0.05;
         star.x = tx;
         star.y = ty;
-
-        // Twinkle every ~2s
-        if (frame % 80 === Math.floor(star.baseX) % 80) {
-          star.baseOpacity = Math.random() * 0.45 + 0.2;
-        }
 
         // Slot into opacity bucket (clamped to [0, 10])
         const bi = Math.min(Math.round(star.opacity * 10), 10);
@@ -244,118 +150,39 @@ const StarfieldBackground: React.FC = () => {
         ctx.fill();
       }
 
-      // --- Constellation lines near mouse — every 2nd frame, TWO stroke() calls total ---
-      if (mouse.x > -999 && frame % 2 === 0) {
-        nearby.length = 0;
-        for (const s of stars) {
-          const dx = s.x - mouse.x;
-          const dy = s.y - mouse.y;
-          if (dx * dx + dy * dy < CONSTELLATION_RADIUS_SQ) nearby.push(s);
-        }
+      rafId = 0;
+    };
 
-        if (nearby.length > 1) {
-          // All inter-star constellation lines in ONE batched stroke call
-          ctx.beginPath();
-          for (let i = 0; i < nearby.length; i++) {
-            for (let j = i + 1; j < nearby.length; j++) {
-              const a = nearby[i], b = nearby[j];
-              const dx = a.x - b.x, dy = a.y - b.y;
-              if (dx * dx + dy * dy < CONSTELLATION_LINK_SQ) {
-                ctx.moveTo(a.x, a.y);
-                ctx.lineTo(b.x, b.y);
-              }
-            }
-          }
-          ctx.strokeStyle = isLight ? 'rgba(200,100,20,0.15)' : 'rgba(220,38,38,0.15)';
-          ctx.lineWidth = 0.5;
-          ctx.stroke();
-        }
-
-        if (nearby.length > 0) {
-          // All mouse-to-star lines in ONE batched stroke call
-          ctx.beginPath();
-          const limit = Math.min(nearby.length, 5);
-          for (let i = 0; i < limit; i++) {
-            ctx.moveTo(mouse.x, mouse.y);
-            ctx.lineTo(nearby[i].x, nearby[i].y);
-          }
-          ctx.strokeStyle = isLight ? 'rgba(200,100,20,0.12)' : 'rgba(220,38,38,0.12)';
-          ctx.lineWidth = 0.6;
-          ctx.stroke();
-        }
-      }
-
-      // --- Shooting stars ---
-      for (let i = shootingStars.length - 1; i >= 0; i--) {
-        const s = shootingStars[i];
-        s.life++;
-        s.x += s.vx;
-        s.y += s.vy;
-        s.opacity = 1 - s.life / s.maxLife;
-
-        if (s.life >= s.maxLife) {
-          shootingStars.splice(i, 1);
-          continue;
-        }
-
-        // Use pre-computed invSpeed — avoids Math.sqrt per frame
-        const tailX = s.x - s.vx * s.length * s.invSpeed;
-        const tailY = s.y - s.vy * s.length * s.invSpeed;
-
-        const grad = ctx.createLinearGradient(tailX, tailY, s.x, s.y);
-        if (isLight) {
-          grad.addColorStop(0, 'rgba(255,180,30,0)');
-          grad.addColorStop(0.6, `rgba(255,140,20,${s.opacity * 0.6})`);
-          grad.addColorStop(1, `rgba(255,220,80,${s.opacity})`);
-        } else {
-          grad.addColorStop(0, 'rgba(255,255,255,0)');
-          grad.addColorStop(0.6, `rgba(255,200,200,${s.opacity * 0.6})`);
-          grad.addColorStop(1, `rgba(255,255,255,${s.opacity})`);
-        }
-
-        ctx.beginPath();
-        ctx.moveTo(tailX, tailY);
-        ctx.lineTo(s.x, s.y);
-        ctx.strokeStyle = grad;
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-
-        ctx.beginPath();
-        ctx.arc(s.x, s.y, 1.5, 0, Math.PI * 2);
-        ctx.fillStyle = isLight
-          ? `rgba(255,220,80,${s.opacity})`
-          : `rgba(255,255,255,${s.opacity})`;
-        ctx.fill();
-      }
-
-      rafId = requestAnimationFrame(animate);
+    let hasDrawn = false;
+    const drawOnce = () => {
+      if (hasDrawn || document.hidden) return;
+      hasDrawn = true;
+      rafId = requestAnimationFrame(draw);
+    };
+    requestStaticDraw = () => {
+      hasDrawn = false;
+      drawOnce();
     };
 
     const handleVisibilityChange = () => {
-      if (document.hidden) {
+      if (document.hidden && rafId) {
         cancelAnimationFrame(rafId);
+        rafId = 0;
       } else {
-        lastTimestamp = 0; // reset so first resumed frame isn't skipped
-        rafId = requestAnimationFrame(animate);
+        drawOnce();
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    if (!document.hidden) {
-      rafId = requestAnimationFrame(animate);
-    }
+    drawOnce();
 
     return () => {
-      cancelAnimationFrame(rafId);
-      clearTimeout(shootingStarTimeout);
+      if (rafId) cancelAnimationFrame(rafId);
       clearTimeout(resizeTimer);
       window.removeEventListener('resize', onResize);
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseleave', onMouseLeave);
-      window.removeEventListener('scroll', onScroll);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, []);
+  }, [theme]);
 
   return (
     <canvas

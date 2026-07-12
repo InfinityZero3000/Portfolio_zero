@@ -17,25 +17,10 @@ interface GlobeVizProps {
   onZoomOut?: () => void; // Callback when globe is zoomed out to max distance
 }
 
-// Calculate sun position based on current time
-const getSunPosition = (date: Date) => {
-  const dayOfYear = Math.floor((date.getTime() - new Date(date.getFullYear(), 0, 0).getTime()) / 86400000);
-  const declination = 23.45 * Math.sin((360 / 365) * (dayOfYear - 81) * Math.PI / 180);
-
-  const hours = date.getUTCHours();
-  const minutes = date.getUTCMinutes();
-  const seconds = date.getUTCSeconds();
-  const timeDecimal = hours + minutes / 60 + seconds / 3600;
-  const longitude = (timeDecimal / 24) * 360 - 180;
-
-  return { lat: declination, lng: longitude };
-};
-
 const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const globeRef = useRef<any>(null);
-  const [sunPos, setSunPos] = useState(getSunPosition(new Date()));
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isGlobeReady, setIsGlobeReady] = useState(false);
   const { theme } = useTheme();
@@ -45,7 +30,7 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
 
   // Pause/resume control — shared across effects
   const pausedRef = useRef(false);            // true = animate loop should stop
-  const animFnRef = useRef<((ts: number) => void) | null>(null); // stable ref to animate fn
+  const animFnRef = useRef<(() => void) | null>(null); // schedules a one-frame render
   const animIdRef = useRef<number | null>(null);                  // current rAF id
   const { width, height } = useResizeDetector({
     targetRef: containerRef,
@@ -53,14 +38,12 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
     refreshRate: 300, // Increased debounce to 300ms for better performance
     skipOnMount: false
   });
-  const sunLightRef = useRef<THREE.DirectionalLight | null>(null);
 
   // Detect device capabilities once
   const deviceCapability = useMemo(() => detectDeviceCapability(), []);
   const textureURLs = useMemo(() => getOptimalTextureURLs(deviceCapability), [deviceCapability]);
   const rendererSettings = useMemo(() => getOptimalRendererSettings(deviceCapability), [deviceCapability]);
 
-  // Update sun position every minute
   useEffect(() => {
     themeRef.current = theme;
     // Swap textures live when theme changes
@@ -76,20 +59,9 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
         try { globeRef.current.atmosphereColor('rgba(0,0,0,0)'); } catch (_) {}
         try { globeRef.current.atmosphereAltitude(0); } catch (_) {}
       }
+      animFnRef.current?.();
     }
   }, [theme, textureURLs]);
-
-  // Update sun position every minute
-  useEffect(() => {
-    const updateSunPosition = () => {
-      setSunPos(getSunPosition(new Date()));
-    };
-
-    updateSunPosition();
-    const interval = setInterval(updateSunPosition, 60000); // Update every minute
-
-    return () => clearInterval(interval);
-  }, []);
 
   // Capture the first usable size for one-time initialization, then only resize
   // the existing globe on later layout changes.
@@ -103,6 +75,7 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
 
     if (globeRef.current) {
       globeRef.current.width(width).height(height);
+      animFnRef.current?.();
     }
   }, [width, height]);
 
@@ -118,22 +91,14 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
 
     let mounted = true;
     const cleanupTimeouts: number[] = [];
-    const cleanupIntervals: number[] = [];
     const cleanupListeners: Array<() => void> = [];
 
     // Track atmosphere mesh for disposal on cleanup
-    let atmosFadeRafId: number | null = null;
     let atmosObjects: { mesh: THREE.Mesh; geo: THREE.SphereGeometry; mat: THREE.ShaderMaterial } | null = null;
 
     const registerTimeout = (fn: () => void, delay: number) => {
       const id = window.setTimeout(fn, delay);
       cleanupTimeouts.push(id);
-      return id;
-    };
-
-    const registerInterval = (fn: () => void, delay: number) => {
-      const id = window.setInterval(fn, delay);
-      cleanupIntervals.push(id);
       return id;
     };
 
@@ -379,72 +344,40 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
               side: THREE.BackSide,
               transparent: true,
               depthWrite: false,
-              opacity: 0
+              opacity: 1
             });
             const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
             atmosphere.scale.set(1.1, 1.1, 1.1);
             atmosphere.renderOrder = -1;
 
-            // Fade in atmosphere with a single rAF-based animation instead of setInterval
             atmosphereMaterial.transparent = true;
-            atmosphereMaterial.opacity = 0;
+            atmosphereMaterial.opacity = 1;
             atmosObjects = { mesh: atmosphere, geo: atmosphereGeometry, mat: atmosphereMaterial };
-            const fadeStart = performance.now();
-            const fadeDuration = 600; // ms
-            const fadeStep = () => {
-              const elapsed = performance.now() - fadeStart;
-              const t = Math.min(elapsed / fadeDuration, 1);
-              atmosphereMaterial.opacity = t;
-              atmosphereMaterial.needsUpdate = true;
-              if (t < 1) {
-                atmosFadeRafId = requestAnimationFrame(fadeStep);
-              } else {
-                atmosFadeRafId = null;
-              }
-            };
-            atmosFadeRafId = requestAnimationFrame(fadeStep);
-
             scene.add(atmosphere);
+            if (!pausedRef.current) renderer.render(scene, myGlobe.camera());
           }, 500); // Add atmosphere 500ms after zoom starts
         }
       }, 100);
 
-      // Optimize controls for smooth rotation
+      // Render only when something changes; no idle animation loop.
       const controls = myGlobe.controls();
       const camera = myGlobe.camera();
-      controls.autoRotate = true; // Enable auto-rotate for dynamic effect
-      controls.autoRotateSpeed = 0.25; // Start slower and ramp up
-            registerTimeout(() => {
-              if (controls && mounted) {
-                controls.autoRotateSpeed = 0.55; // Ramp to normal speed after initial appear
-              }
-            }, 1200);
-
-      controls.enableDamping = true;
-      controls.dampingFactor = 0.1; // Higher value = less calculations, better performance
+      controls.autoRotate = false;
+      controls.enableDamping = false;
       controls.rotateSpeed = 0.6; // Smooth manual rotation
       controls.minDistance = 150; // Prevent zooming too close to Earth surface
       controls.maxDistance = 350; // Allow more zoom out distance for better UX
       controls.enablePan = true;
       controls.panSpeed = 0.5;
-      controls.enableZoom = false; // Disabled by default so wheel events reach Lenis for page scroll
+      controls.enableZoom = false; // Disabled by default so wheel events reach page scroll
 
       // Capture-phase interceptor: fires BEFORE OrbitControls' bubble listener on the canvas.
       // Globe.gl's bundled Three.js may call preventDefault()/stopPropagation() unconditionally
       // in its wheel handler, which would swallow all scroll events even when enableZoom=false.
-      // By stopping propagation here in the capture phase we prevent that, then forward the
-      // delta to Lenis so the page still scrolls smoothly.
+      // By stopping propagation here in the capture phase we prevent that.
       const interceptWheel = (e: WheelEvent) => {
         if (!controls.enableZoom) {
           e.stopImmediatePropagation(); // Block OrbitControls from seeing this event
-          const lenis = (window as any).__lenis;
-          if (lenis) {
-            // Accumulate scroll by targeting current position + delta
-            lenis.scrollTo((lenis.targetScroll ?? window.scrollY) + e.deltaY, {
-              duration: 1.0,
-              easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-            });
-          }
         }
       };
       if (containerRef.current) {
@@ -464,7 +397,7 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
 
       const onMouseLeave = () => {
         isMouseOverCanvas = false;
-        // Immediately disable zoom so wheel events pass through to Lenis (page scroll)
+        // Immediately disable zoom so wheel events pass through to page scroll
         registerTimeout(() => {
           if (!isMouseOverCanvas) {
             controls.enableZoom = false;
@@ -504,7 +437,7 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
         }
       };
       
-      // Add wheel listener for scroll detection (passive so it doesn't block Lenis)
+      // Add wheel listener for scroll detection
       addCanvasListener(canvas, 'wheel', handleWheelScroll, { passive: true });
 
       // Apply scene optimizations
@@ -521,32 +454,41 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
 
       globeRef.current = myGlobe;
 
-      // Apply initial pause state based on current theme
-      // (the separate pause-control useEffect handles changes; this covers the first load)
+      const renderScene = () => {
+        if (!mounted || pausedRef.current) return;
+        controls.update();
+        renderer.render(scene, camera);
+      };
+
+      const scheduleRender = () => {
+        if (animIdRef.current != null) return;
+        animIdRef.current = requestAnimationFrame(() => {
+          animIdRef.current = null;
+          renderScene();
+        });
+      };
+
+      controls.addEventListener('change', scheduleRender);
+      cleanupListeners.push(() => controls.removeEventListener('change', scheduleRender));
+      animFnRef.current = scheduleRender;
+      try { renderer.setAnimationLoop(null); } catch (_) {}
+
+      // Apply initial pause state based on current theme.
       {
         const initIsLight = document.documentElement.getAttribute('data-theme') === 'light';
         if (initIsLight) {
-          pausedRef.current = true; // globeLoop will bail on first tick
-          try { renderer.setAnimationLoop(null); } catch (_) {}
+          pausedRef.current = true;
           try { controls.autoRotate = false; } catch (_) {}
         }
       }
 
-      // Optimized animation loop with adaptive frame rate
-      let isUserInteracting = false;
-      let inactivityTimer: ReturnType<typeof setTimeout> | undefined;
-
       // Detect user interaction for adaptive rendering
       const onInteractionStart = () => {
-        isUserInteracting = true;
-        clearTimeout(inactivityTimer);
+        scheduleRender();
       };
 
       const onInteractionEnd = () => {
-        clearTimeout(inactivityTimer);
-        inactivityTimer = setTimeout(() => {
-          isUserInteracting = false;
-        }, 500);
+        scheduleRender();
       };
 
       // Handle wheel events - allow scroll through when not zooming
@@ -582,24 +524,7 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
       addCanvasListener(canvas, 'wheel', onWheel, { passive: true });
 
 
-      // Adaptive FPS based on interaction
-      const targetFPS = deviceCapability.isMobile ? 30 : 60;
-      const idleFPS = deviceCapability.isMobile ? 15 : 30;
-
-      // Single merged loop: handles controls + render with FPS throttling.
-      // Replaces the old dual-loop (Globe.gl setAnimationLoop at 60fps + custom rAF).
-      let lastRenderTs = 0;
-      const globeLoop = (ts: number) => {
-        if (!mounted || pausedRef.current) return;
-        const fps = isUserInteracting ? targetFPS : idleFPS;
-        if (ts - lastRenderTs < 1000 / fps) return;
-        lastRenderTs = ts;
-        controls.update();
-        renderer.render(scene, camera);
-      };
-      animFnRef.current = globeLoop as any;
-      // setAnimationLoop fires at display refresh rate; globeLoop throttles internally.
-      renderer.setAnimationLoop(globeLoop);
+      scheduleRender();
 
       // Notify consumers after the initial scene has had time to settle.
       registerTimeout(() => {
@@ -618,13 +543,7 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
 
     return () => {
       mounted = false;
-      // Cancel any in-flight atmosphere fade rAF before anything else
-      if (atmosFadeRafId != null) {
-        cancelAnimationFrame(atmosFadeRafId);
-        atmosFadeRafId = null;
-      }
       cleanupTimeouts.forEach(id => clearTimeout(id));
-      cleanupIntervals.forEach(id => clearInterval(id));
       cleanupListeners.forEach(dispose => dispose());
       if (animIdRef.current != null) {
         cancelAnimationFrame(animIdRef.current);
@@ -648,16 +567,9 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
   }, [hasInitialSize, textureURLs, deviceCapability, rendererSettings, onGlobeReady, onZoomOut]);
 
   // ── Pause / resume control ─────────────────────────────────────────────────
-  // Globe should only render when: theme === 'dark' AND home section is visible.
-  // Uses MutationObserver (theme) + IntersectionObserver (scroll) to stop/start
-  // both our custom rAF loop and Globe.gl's internal WebGLRenderer loop.
+  // Globe renders only when: theme === 'dark' AND home section is visible.
   useEffect(() => {
-    const getRenderer = (): THREE.WebGLRenderer | null => {
-      try { return globeRef.current?.renderer?.() ?? null; } catch { return null; }
-    };
-
-    let isVisible = true;         // tracks IntersectionObserver state
-    let rendererStopped = false;  // true if we called setAnimationLoop(null)
+    let isVisible = true; // tracks IntersectionObserver state
 
     const shouldPause = () => {
       const isLight = document.documentElement.getAttribute('data-theme') === 'light';
@@ -666,12 +578,6 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
 
     const doPause = () => {
       pausedRef.current = true;
-      // Stop the merged setAnimationLoop (handles both render + controls)
-      const r = getRenderer();
-      if (r && !rendererStopped) {
-        try { r.setAnimationLoop(null); rendererStopped = true; } catch (_) {}
-      }
-      // Cancel any lingering rAF (safety net)
       if (animIdRef.current != null) {
         cancelAnimationFrame(animIdRef.current);
         animIdRef.current = null;
@@ -681,17 +587,8 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
 
     const doResume = () => {
       pausedRef.current = false;
-      // Restart the merged loop via setAnimationLoop using the stored loop fn
-      if (rendererStopped) {
-        const r = getRenderer();
-        if (r && animFnRef.current) {
-          try {
-            r.setAnimationLoop(animFnRef.current as any);
-            rendererStopped = false;
-          } catch (_) {}
-        }
-      }
-      try { globeRef.current?.controls?.()?.autoRotate === undefined || (globeRef.current.controls().autoRotate = true); } catch (_) {}
+      try { globeRef.current?.controls?.()?.autoRotate === undefined || (globeRef.current.controls().autoRotate = false); } catch (_) {}
+      animFnRef.current?.();
     };
 
     const update = () => { if (shouldPause()) doPause(); else doResume(); };
@@ -710,9 +607,7 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
       io.observe(containerRef.current);
     }
 
-    // Apply current state immediately (globe may not be loaded yet — that's OK,
-    // pausedRef is set so animate exits on first tick, and Globe.gl initial pause
-    // is handled inside loadGlobe useEffect)
+    // Apply current state immediately; if globe is not loaded yet the ref is still null.
     update();
 
     return () => {
@@ -720,21 +615,6 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
       io?.disconnect();
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Update sun light position when sun position changes
-  useEffect(() => {
-    if (sunLightRef.current) {
-      const phi = (90 - sunPos.lat) * Math.PI / 180;
-      const theta = (sunPos.lng + 180) * Math.PI / 180;
-      const distance = 300;
-
-      sunLightRef.current.position.set(
-        -distance * Math.sin(phi) * Math.cos(theta),
-        distance * Math.cos(phi),
-        distance * Math.sin(phi) * Math.sin(theta)
-      );
-    }
-  }, [sunPos]);
 
   if (loadError) {
     return (

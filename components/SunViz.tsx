@@ -361,34 +361,28 @@ const SunViz: React.FC = () => {
     addAtmo(114, Math.min(segs, 40), new THREE.Color(0.80, 0.20, 0.02), 1.2, 5.5);
 
     const clock    = new THREE.Clock();
-    const FRAME_MS = 1000 / 40; // 40fps cap
-    let lastTs     = 0;
-
-    // cancel/restart helpers — avoids 60-fps rAF callbacks while paused
-    const stopLoop  = () => { cancelAnimationFrame(animId); animId = 0; };
-    const startLoop = () => {
-      // Only restart if both conditions are met
-      if (!animId && !pausedRef.current && visibleRef.current) {
-        animId = requestAnimationFrame(animate);
-      }
-    };
-
-    // Expose to other effects via ref
-    loopControlRef.current = { start: startLoop, stop: stopLoop };
-
-    const animate = (ts: number) => {
-      animId = 0; // cleared before rescheduling so startLoop() detects a stopped state
-      if (!mounted || document.hidden || pausedRef.current) return;
-      if (ts - lastTs < FRAME_MS) { animId = requestAnimationFrame(animate); return; }
-      lastTs = ts;
+    const renderSun = () => {
+      if (!mounted || document.hidden || pausedRef.current || !visibleRef.current) return;
       const t = clock.getElapsedTime();
       sunMat.uniforms.uTime.value = t;
       coronas.forEach(({ mat }) => { mat.uniforms.uTime.value = t; });
       sunMesh.rotation.y = t * 0.022;
       sunMesh.rotation.z = Math.sin(t * 0.012) * 0.045;
       renderer.render(scene, camera);
-      animId = requestAnimationFrame(animate);
     };
+
+    const stopLoop  = () => { cancelAnimationFrame(animId); animId = 0; };
+    const startLoop = () => {
+      if (!animId) {
+        animId = requestAnimationFrame(() => {
+          animId = 0;
+          renderSun();
+        });
+      }
+    };
+
+    // Expose to other effects via ref
+    loopControlRef.current = { start: startLoop, stop: stopLoop };
     startLoop();
 
     // ── Shader pre-warm ────────────────────────────────────────────────────────
@@ -414,6 +408,7 @@ const SunViz: React.FC = () => {
       camera.aspect = nw / nh;
       camera.updateProjectionMatrix();
       renderer.setSize(nw, nh);
+      startLoop();
     });
     ro.observe(container);
 
@@ -447,7 +442,7 @@ const SunViz: React.FC = () => {
     };
   }, []);
 
-  // ── GSAP entrance + continuous animations ────────────────────────────────────
+  // ── GSAP entrance ───────────────────────────────────────────────────────────
   useEffect(() => {
     const onTheme = () => {
       const isLight = document.documentElement.getAttribute('data-theme') === 'light';
@@ -467,7 +462,7 @@ const SunViz: React.FC = () => {
         return;
       }
 
-      // First time unpaused: run entrance once, then start perpetual animations
+      // First time unpaused: run entrance once.
       gsapInitRef.current = true;
       const ctx = gsap.context(() => {
         // Entrance: scale + fade-in (runs only once)
@@ -477,20 +472,7 @@ const SunViz: React.FC = () => {
           { opacity: 1, scale: 1, duration: 1.9, ease: 'expo.out', clearProps: 'scale' }
         );
 
-        // Continuous tweens stored so we can pause/resume them
-        tweensRef.current = [
-          // Halo: breathing scale + opacity pulse
-          gsap.to(haloRef.current, {
-            scale:    1.10,
-            opacity:  0.70,
-            duration: 9.0,
-            yoyo:     true,
-            repeat:   -1,
-            ease:     'sine.inOut',
-            delay:    0.8,
-            transformOrigin: '50% 50%',
-          }),
-        ];
+        tweensRef.current = [];
       });
 
       gsapCtxRef.current = ctx;
@@ -533,7 +515,7 @@ const SunViz: React.FC = () => {
           borderRadius:  '50%',
           background:    'radial-gradient(circle, rgba(255,210,80,0.10) 0%, rgba(255,120,20,0.05) 40%, transparent 68%)',
           filter:        'blur(8px)',
-          willChange:    'transform',
+          willChange:    'auto',
           pointerEvents: 'none',
         }}
       />

@@ -4,14 +4,8 @@ export const scrollToSection = (sectionId: string) => {
   const element = document.getElementById(sectionId);
   if (!element) return;
 
-  // Use Lenis if available (injected via window.__lenis by App.tsx)
-  const lenis = (window as any).__lenis;
-  if (lenis) {
-    lenis.scrollTo(element, { offset: 0, duration: 1.2 });
-  } else {
-    const top = element.getBoundingClientRect().top + window.scrollY;
-    window.scrollTo({ top, behavior: 'smooth' });
-  }
+  const top = element.getBoundingClientRect().top + window.scrollY;
+  window.scrollTo({ top, behavior: 'smooth' });
 };
 
 export const getCurrentSection = (): string => {

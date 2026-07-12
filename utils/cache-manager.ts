@@ -16,6 +16,8 @@ interface CacheOptions {
   compress?: boolean;
 }
 
+export const DATA_CACHE_TTL = 3 * 24 * 60 * 60 * 1000; // 3 days
+
 class CacheManager {
   private memoryCache = new Map<string, CacheEntry<any>>();
   private dbName = 'portfolio_cache';

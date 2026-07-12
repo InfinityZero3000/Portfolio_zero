@@ -1,14 +1,13 @@
 import React, { useState, createContext, useContext, memo, lazy, Suspense, useEffect, useCallback, startTransition, useMemo } from 'react';
-import Lenis from 'lenis';
 import { motion, AnimatePresence } from 'framer-motion';
 import { NAV_ITEMS, PROJECTS, SKILLS, ACHIEVEMENTS, EDUCATION_DATA, BIO, NAME } from './constants';
 import { Language } from './types';
 import { getTranslations } from './i18n/translations';
 import { Sun, Moon, Download, Award, GraduationCap, FileText, Github, Linkedin, Mail, MapPin, Calendar, Menu, X, Cpu } from 'lucide-react';
 import clsx from 'clsx';
-import { performanceMonitor } from './utils/performance-monitor';
 import { scrollToSection, setupScrollObserver } from './utils/scroll-utils';
 import { ThemeContext, useTheme, type Theme } from './contexts/ThemeContext';
+import { cacheManager, DATA_CACHE_TTL } from './utils/cache-manager';
 
 // Lazy load components — only one WebGL viz is ever active at a time
 const GlobeViz  = lazy(() => import('./components/GlobeViz'));
@@ -381,17 +380,6 @@ const SkillSection: React.FC = memo(() => {
   const { lang } = useLang();
   const t = getTranslations(lang);
 
-  const getSkillLevelInfo = (level: string) => {
-    const info = SKILL_LEVEL_MAP[level] ?? SKILL_LEVEL_MAP['Basic'];
-    return {
-      text: info.text[lang],
-      color: info.color,
-      bg: info.bg,
-      barColor: info.barColor,
-      width: SKILL_LEVEL_WIDTH[level] ?? 40,
-    };
-  };
-
   return (
     <SectionWrapper id="skill" title={t.skills.title}>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -404,23 +392,14 @@ const SkillSection: React.FC = memo(() => {
               </h3>
               <div className="flex flex-col gap-4 flex-1">
                 {section.items.map((skill) => {
-                  const levelInfo = getSkillLevelInfo(skill.level);
+                  const levelInfo = SKILL_LEVEL_MAP[skill.level] ?? SKILL_LEVEL_MAP['Basic'];
                   return (
                     <div key={skill.name} className="group">
-                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <div className="flex items-center justify-between gap-2">
                         <span className="text-sm text-gray-300 group-hover:text-white transition-colors font-medium leading-none">{skill.name}</span>
                         <span className={`text-[10px] font-semibold px-2 py-0.5 rounded ${levelInfo.bg} ${levelInfo.color} whitespace-nowrap flex-shrink-0`}>
-                          {levelInfo.text}
+                          {levelInfo.text[lang]}
                         </span>
-                      </div>
-                      <div className="h-0.5 bg-dark-700 rounded-full overflow-hidden">
-                        <motion.div
-                          className={`h-full rounded-full ${levelInfo.barColor}`}
-                          initial={{ width: 0 }}
-                          whileInView={{ width: `${levelInfo.width}%` }}
-                          viewport={{ once: true }}
-                          transition={{ duration: 0.9, ease: 'easeOut', delay: 0.1 + idx * 0.03 }}
-                        />
                       </div>
                     </div>
                   );
@@ -435,16 +414,39 @@ const SkillSection: React.FC = memo(() => {
 });
 
 // --- Skill level display map (module-level constant — never recreated on render) ---
-const SKILL_LEVEL_MAP: Record<string, { text: { [key in Language]: string }; color: string; bg: string; barColor: string }> = {
-  Beginner:     { text: { [Language.EN]: 'Beginner',     [Language.VI]: 'Mới bắt đầu' }, color: 'text-gray-400',   bg: 'bg-gray-900/50',   barColor: 'bg-gray-500'   },
-  Basic:        { text: { [Language.EN]: 'Basic',         [Language.VI]: 'Cơ bản'       }, color: 'text-blue-400',   bg: 'bg-blue-900/30',   barColor: 'bg-blue-500'   },
-  Intermediate: { text: { [Language.EN]: 'Intermediate',  [Language.VI]: 'Trung cấp'    }, color: 'text-yellow-400', bg: 'bg-yellow-900/30', barColor: 'bg-yellow-500' },
-  Advanced:     { text: { [Language.EN]: 'Advanced',      [Language.VI]: 'Nâng cao'     }, color: 'text-green-400',  bg: 'bg-green-900/30',  barColor: 'bg-green-500'  },
-  Expert:       { text: { [Language.EN]: 'Expert',        [Language.VI]: 'Chuyên gia'   }, color: 'text-brand-400',  bg: 'bg-brand-900/30',  barColor: 'bg-brand-500'  },
+const SKILL_LEVEL_MAP: Record<string, { text: { [key in Language]: string }; color: string; bg: string }> = {
+  Beginner:     { text: { [Language.EN]: 'Beginner',     [Language.VI]: 'Mới bắt đầu' }, color: 'text-gray-400',   bg: 'bg-gray-900/50'   },
+  Basic:        { text: { [Language.EN]: 'Basic',         [Language.VI]: 'Cơ bản'       }, color: 'text-blue-400',   bg: 'bg-blue-900/30'   },
+  Intermediate: { text: { [Language.EN]: 'Intermediate',  [Language.VI]: 'Trung cấp'    }, color: 'text-yellow-400', bg: 'bg-yellow-900/30' },
+  Advanced:     { text: { [Language.EN]: 'Advanced',      [Language.VI]: 'Nâng cao'     }, color: 'text-green-400',  bg: 'bg-green-900/30'  },
+  Expert:       { text: { [Language.EN]: 'Expert',        [Language.VI]: 'Chuyên gia'   }, color: 'text-brand-400',  bg: 'bg-brand-900/30'  },
 };
 
-const SKILL_LEVEL_WIDTH: Record<string, number> = {
-  Beginner: 20, Basic: 40, Intermediate: 65, Advanced: 85, Expert: 100,
+const GH_REPO_COUNT_CACHE_KEY = 'gh_repo_count';
+let repoCountRequest: Promise<number> | null = null;
+
+const loadGithubRepoCount = async () => {
+  const cached = await cacheManager.get<number>(GH_REPO_COUNT_CACHE_KEY, 'localStorage');
+  if (cached !== null) return cached;
+
+  repoCountRequest ??= fetch('https://api.github.com/users/InfinityZero3000/repos?per_page=100&type=all')
+    .then((response) => {
+      if (!response.ok) throw new Error(`GitHub API error: ${response.status}`);
+      return response.json();
+    })
+    .then(async (data) => {
+      const count = Array.isArray(data) ? data.length : 8;
+      await cacheManager.set(GH_REPO_COUNT_CACHE_KEY, count, {
+        ttl: DATA_CACHE_TTL,
+        storage: 'localStorage',
+      });
+      return count;
+    })
+    .finally(() => {
+      repoCountRequest = null;
+    });
+
+  return repoCountRequest;
 };
 
 // --- Achievement Section helpers ---
@@ -630,40 +632,21 @@ const AboutSection: React.FC = memo(() => {
 
   const [repoCount, setRepoCount] = useState<number>(8);
 
-  // Fetch GitHub repos count (cached in sessionStorage for 30 min)
+  // GitHub count is cached for a few days and shared across remounts.
   useEffect(() => {
-    const controller = new AbortController();
-    const CACHE_KEY = 'gh_repo_count';
-    const CACHE_TTL = 30 * 60 * 1000;
+    let cancelled = false;
 
-    const fetchRepos = async () => {
-      try {
-        const raw = sessionStorage.getItem(CACHE_KEY);
-        if (raw) {
-          const { count, ts } = JSON.parse(raw);
-          if (Date.now() - ts < CACHE_TTL) { setRepoCount(count); return; }
-        }
-      } catch { /* ignore parse errors */ }
+    loadGithubRepoCount()
+      .then((count) => {
+        if (!cancelled) setRepoCount(count);
+      })
+      .catch((err) => {
+        if (!cancelled) console.error('Failed to fetch GitHub repos:', err);
+      });
 
-      try {
-        const response = await fetch('https://api.github.com/users/InfinityZero3000/repos?per_page=100&type=all', {
-          signal: controller.signal,
-        });
-        if (!response.ok) throw new Error(`GitHub API error: ${response.status}`);
-        const data = await response.json();
-        if (Array.isArray(data)) {
-          setRepoCount(data.length);
-          try { sessionStorage.setItem(CACHE_KEY, JSON.stringify({ count: data.length, ts: Date.now() })); } catch { /* quota */ }
-        }
-      } catch (err) {
-        if ((err as Error).name !== 'AbortError') {
-          console.error('Failed to fetch GitHub repos:', err);
-        }
-      }
+    return () => {
+      cancelled = true;
     };
-
-    fetchRepos();
-    return () => controller.abort();
   }, []);
 
   return (
@@ -835,7 +818,7 @@ const ResumeSection: React.FC = memo(() => {
             </div>
           </div>
 
-          {/* iframe is pointer-events:none so wheel events pass through to Lenis at window level */}
+          {/* iframe is pointer-events:none so wheel events pass through to the page */}
           <div
             className="bg-dark-800 border border-dark-700 rounded-2xl overflow-hidden shadow-2xl relative mx-auto"
             style={{ height: 'calc(100vh - 10rem)', width: '100%' }}
@@ -847,7 +830,7 @@ const ResumeSection: React.FC = memo(() => {
               style={{ border: 'none', pointerEvents: 'none' }}
               allow="fullscreen"
             />
-            {/* pointer-events:none overlay — wheel events fall through to window → Lenis handles page scroll */}
+            {/* pointer-events:none overlay — wheel events fall through to the page */}
             <div className="absolute inset-0 z-10 flex items-end justify-center pb-4 pointer-events-none">
               <a
                 href={viewUrl}
@@ -923,61 +906,6 @@ export default function App() {
   useEffect(() => {
     const cleanup = setupScrollObserver(setActiveSection);
     return cleanup;
-  }, []);
-
-  // Setup Lenis smooth scroll
-  useEffect(() => {
-    const lenis = new Lenis({
-      duration: 1.2,
-      easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-      smoothWheel: true,
-    });
-
-    // Expose lenis to scroll-utils via window for nav links
-    (window as any).__lenis = lenis;
-
-    let rafId: number | null = null;
-    const raf = (time: number) => {
-      lenis.raf(time);
-      rafId = requestAnimationFrame(raf);
-    };
-
-    // Pause the Lenis loop when the tab is hidden — no need to drive smooth scroll in background
-    const onVisChange = () => {
-      if (document.hidden) {
-        if (rafId != null) { cancelAnimationFrame(rafId); rafId = null; }
-      } else {
-        if (rafId == null) rafId = requestAnimationFrame(raf);
-      }
-    };
-    document.addEventListener('visibilitychange', onVisChange);
-
-    if (!document.hidden) rafId = requestAnimationFrame(raf);
-
-    return () => {
-      if (rafId != null) cancelAnimationFrame(rafId);
-      document.removeEventListener('visibilitychange', onVisChange);
-      lenis.destroy();
-      (window as any).__lenis = null;
-    };
-  }, []);
-
-  // Initialize performance monitoring
-  useEffect(() => {
-    const isDev = import.meta.env.DEV;
-
-    if (isDev) {
-      console.log('[Performance] App initialized');
-      setTimeout(() => {
-        const summary = performanceMonitor.getSummary();
-        console.log('[Performance Summary]', summary);
-        console.log('[Recommendations]', performanceMonitor.getRecommendations());
-      }, 3000);
-    }
-
-    return () => {
-      performanceMonitor.stop();
-    };
   }, []);
 
   return (

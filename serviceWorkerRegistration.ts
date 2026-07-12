@@ -1,6 +1,6 @@
 // Service Worker Registration with error handling
 export function register() {
-  if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
+  if ('serviceWorker' in navigator && import.meta.env.PROD) {
     window.addEventListener('load', () => {
       const swUrl = '/sw.js';
 

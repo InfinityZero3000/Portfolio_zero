@@ -8,9 +8,8 @@
   box-sizing: border-box;
 }
 
-/* GPU acceleration for smoother animations */
 html {
-  scroll-behavior: auto; /* Let Lenis handle smooth scroll */
+  scroll-behavior: auto;
   overflow-x: clip; /* Clip horizontal overflow without creating a scroll container */
 }
 
@@ -27,7 +26,7 @@ body {
   transition: background-color 0.5s ease;
   color: #e5e5e5;
   overflow-x: clip; /* Clip horizontal overflow without creating a scroll container */
-  /* No overflow-y: body must not become its own scroll container so window.scrollTo/Lenis work */
+  /* No overflow-y: body must not become its own scroll container so window.scrollTo works */
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -83,7 +82,7 @@ nav[class*="fixed"] {
 
 /* content-visibility: auto on img removed — it is designed for block layout containers,
    not replaced elements. On img with lazy loading it can cause the browser to report 0
-   height for off-screen images, corrupting Lenis scroll-limit calculation. */
+   height for off-screen images, corrupting scroll-limit calculation. */
 
 /* will-change on a/button removed — promoting every interactive element to its own
    compositor layer wastes GPU memory and can confuse scroll-container detection. */
@@ -202,4 +201,3 @@ nav[class*="fixed"] {
   pointer-events: auto;
   transition: opacity 0.75s ease, visibility 0s linear 0s;
 }
-

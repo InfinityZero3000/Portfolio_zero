@@ -5,6 +5,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { getTranslations } from '../i18n/translations';
 import { Language } from '../types';
 import clsx from 'clsx';
+import { cacheManager, DATA_CACHE_TTL } from '../utils/cache-manager';
 
 export interface PinnedRepo {
   name: string;
@@ -152,6 +153,38 @@ const RepoCard: React.FC<{ repo: PinnedRepo; lang: 'EN' | 'VI' }> = memo(({ repo
 
 type FetchState = 'idle' | 'loading' | 'success' | 'error';
 
+const PINNED_REPOS_CACHE_KEY = 'gh_pinned_repos';
+let pinnedReposRequest: Promise<PinnedRepo[]> | null = null;
+
+const loadPinnedRepos = async () => {
+  const cached = await cacheManager.get<PinnedRepo[]>(PINNED_REPOS_CACHE_KEY, 'localStorage');
+  if (cached !== null) return cached;
+
+  pinnedReposRequest ??= fetch('/api/pinned-repos')
+    .then(async (res) => {
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        const msg =
+          (body?.error ? String(body.error) : '') +
+          (body?.hint ? ` — ${String(body.hint)}` : '');
+        throw new Error(msg || `HTTP ${res.status}`);
+      }
+      return res.json() as Promise<PinnedRepo[]>;
+    })
+    .then(async (data) => {
+      await cacheManager.set(PINNED_REPOS_CACHE_KEY, data, {
+        ttl: DATA_CACHE_TTL,
+        storage: 'localStorage',
+      });
+      return data;
+    })
+    .finally(() => {
+      pinnedReposRequest = null;
+    });
+
+  return pinnedReposRequest;
+};
+
 const GithubPinnedRepos: React.FC<{ lang: 'EN' | 'VI' }> = ({ lang }) => {
   const { theme } = useTheme();
   const [repos, setRepos] = useState<PinnedRepo[]>([]);
@@ -162,15 +195,7 @@ const GithubPinnedRepos: React.FC<{ lang: 'EN' | 'VI' }> = ({ lang }) => {
     setState('loading');
     setError('');
     try {
-      const res = await fetch('/api/pinned-repos');
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        const msg =
-          (body?.error ? String(body.error) : '') +
-          (body?.hint ? ` — ${String(body.hint)}` : '');
-        throw new Error(msg || `HTTP ${res.status}`);
-      }
-      const data: PinnedRepo[] = await res.json();
+      const data = await loadPinnedRepos();
       setRepos(data);
       setState('success');
     } catch (err: any) {
