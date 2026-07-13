@@ -1,50 +1,40 @@
-// Service Worker Registration with error handling
-export function register() {
-  if ('serviceWorker' in navigator && import.meta.env.PROD) {
-    window.addEventListener('load', () => {
-      const swUrl = '/sw.js';
+async function removeLegacyRegistrations() {
+  if (!('serviceWorker' in navigator)) return;
 
-      navigator.serviceWorker
-        .register(swUrl)
-        .then((registration) => {
-          console.log('SW registered:', registration);
-          
-          // Check for updates periodically
-          setInterval(() => {
-            registration.update();
-          }, 60 * 60 * 1000); // Check every hour
-
-          registration.onupdatefound = () => {
-            const installingWorker = registration.installing;
-            if (installingWorker) {
-              installingWorker.onstatechange = () => {
-                if (installingWorker.state === 'installed') {
-                  if (navigator.serviceWorker.controller) {
-                    console.log('New content available, please refresh.');
-                    // Optional: notify user to refresh
-                  } else {
-                    console.log('Content cached for offline use.');
-                  }
-                }
-              };
-            }
-          };
-        })
-        .catch((error) => {
-          console.error('SW registration failed:', error);
-        });
-    });
-  }
+  const registrations = await navigator.serviceWorker.getRegistrations();
+  await Promise.all(registrations.map((registration) => registration.unregister()));
 }
 
-export function unregister() {
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.ready
-      .then((registration) => {
-        registration.unregister();
-      })
-      .catch((error) => {
-        console.error('SW unregister error:', error);
-      });
+async function removeLegacyCaches() {
+  if (!('caches' in window)) return;
+
+  const cacheNames = await caches.keys();
+  await Promise.all(
+    cacheNames
+      .filter((cacheName) => cacheName.startsWith('portfolio-'))
+      .map((cacheName) => caches.delete(cacheName))
+  );
+}
+
+export function cleanupLegacyServiceWorker() {
+  if (!import.meta.env.PROD) return;
+
+  const cleanup = async () => {
+    const results = await Promise.allSettled([
+      removeLegacyRegistrations(),
+      removeLegacyCaches(),
+    ]);
+
+    results.forEach((result) => {
+      if (result.status === 'rejected') {
+        console.warn('Legacy service worker cleanup failed:', result.reason);
+      }
+    });
+  };
+
+  if (document.readyState === 'complete') {
+    void cleanup();
+  } else {
+    window.addEventListener('load', () => void cleanup(), { once: true });
   }
 }

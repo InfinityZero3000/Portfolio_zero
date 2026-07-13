@@ -2,7 +2,7 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import './index.css';
-import { register as registerServiceWorker } from './serviceWorkerRegistration';
+import { cleanupLegacyServiceWorker } from './serviceWorkerRegistration';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -25,5 +25,5 @@ root.render(
   </React.StrictMode>
 );
 
-// Register service worker for caching and offline support (production only).
-registerServiceWorker();
+// Remove the legacy offline cache so each deploy loads a coherent asset graph.
+cleanupLegacyServiceWorker();
