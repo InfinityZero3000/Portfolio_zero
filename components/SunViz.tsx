@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { gsap } from 'gsap';
 import { detectDeviceCapability } from '../utils/texture-optimizer';
@@ -245,7 +245,12 @@ const ATMO_FRAG = `
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-const SunViz: React.FC = () => {
+interface SunVizProps {
+  onReady?: () => void;
+  onError?: (error: Error) => void;
+}
+
+const SunViz: React.FC<SunVizProps> = ({ onReady, onError }) => {
   const outerRef   = useRef<HTMLDivElement>(null);
   const mountRef   = useRef<HTMLDivElement>(null);
   const haloRef    = useRef<HTMLDivElement>(null);
@@ -255,6 +260,14 @@ const SunViz: React.FC = () => {
   const gsapCtxRef   = useRef<ReturnType<typeof gsap.context> | null>(null);
   const tweensRef    = useRef<gsap.core.Tween[]>([]);
   const gsapInitRef  = useRef(false);
+  const [renderError, setRenderError] = useState<string | null>(null);
+  const onReadyRef = useRef(onReady);
+  const onErrorRef = useRef(onError);
+
+  useEffect(() => {
+    onReadyRef.current = onReady;
+    onErrorRef.current = onError;
+  }, [onReady, onError]);
 
   // ── Three.js ────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -264,12 +277,21 @@ const SunViz: React.FC = () => {
     const segs  = dev.isMobile ? 32 : 52;
     let animId: number;
     let mounted = true;
+    let failed = false;
     const w = container.clientWidth  || window.innerWidth  || 800;
     const h = container.clientHeight || window.innerHeight || 600;
 
-    const renderer = new THREE.WebGLRenderer({
-      alpha: true, antialias: true, powerPreference: 'high-performance',
-    });
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({
+        alpha: true, antialias: true, powerPreference: 'high-performance',
+      });
+    } catch (value) {
+      const error = value instanceof Error ? value : new Error(String(value));
+      setRenderError(error.message || 'WebGL initialization failed');
+      onErrorRef.current?.(error);
+      return;
+    }
     renderer.setSize(w, h);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, dev.isMobile ? 1.0 : 1.5));
     renderer.setClearColor(0x000000, 0);
@@ -361,14 +383,28 @@ const SunViz: React.FC = () => {
     addAtmo(114, Math.min(segs, 40), new THREE.Color(0.80, 0.20, 0.02), 1.2, 5.5);
 
     const clock    = new THREE.Clock();
+    const safeRender = () => {
+      if (!mounted || failed) return false;
+      try {
+        renderer.render(scene, camera);
+        return true;
+      } catch (value) {
+        failed = true;
+        const error = value instanceof Error ? value : new Error(String(value));
+        setRenderError(error.message || 'Sun rendering failed');
+        onErrorRef.current?.(error);
+        return false;
+      }
+    };
+
     const renderSun = () => {
-      if (!mounted || document.hidden || pausedRef.current || !visibleRef.current) return;
+      if (!mounted || failed || document.hidden || pausedRef.current || !visibleRef.current) return;
       const t = clock.getElapsedTime();
       sunMat.uniforms.uTime.value = t;
       coronas.forEach(({ mat }) => { mat.uniforms.uTime.value = t; });
       sunMesh.rotation.y = t * 0.022;
       sunMesh.rotation.z = Math.sin(t * 0.012) * 0.045;
-      renderer.render(scene, camera);
+      safeRender();
     };
 
     const stopLoop  = () => { cancelAnimationFrame(animId); animId = 0; };
@@ -385,20 +421,13 @@ const SunViz: React.FC = () => {
     loopControlRef.current = { start: startLoop, stop: stopLoop };
     startLoop();
 
-    // ── Shader pre-warm ────────────────────────────────────────────────────────
-    // WebGL compiles GLSL shaders synchronously on the FIRST renderer.render() call.
-    // Since the loop skips frames while paused (dark mode), shaders are never compiled
-    // until the user toggles to light mode → ~200–400ms jank spike on first switch.
-    //
-    // Fix: call renderer.render() once during browser idle time (~1.5s after mount).
-    // The canvas is still hidden, so the user sees nothing, but shaders are compiled.
-    // After this, the first visible frame is instant.
-    const warmId = (window as any).requestIdleCallback
-      ? (window as any).requestIdleCallback(
-          () => { if (mounted) renderer.render(scene, camera); },
-          { timeout: 3000 },
-        )
-      : setTimeout(() => { if (mounted) renderer.render(scene, camera); }, 1500);
+    // Compile shaders behind the loader, then report the first complete frame.
+    const readyFrame = requestAnimationFrame(() => {
+      if (!mounted) return;
+      if (safeRender()) {
+        onReadyRef.current?.();
+      }
+    });
 
     const ro = new ResizeObserver(() => {
       if (!container || !mounted) return;
@@ -422,13 +451,9 @@ const SunViz: React.FC = () => {
 
     return () => {
       mounted = false;
+      cancelAnimationFrame(readyFrame);
       stopLoop();
       io.disconnect();
-      if ((window as any).requestIdleCallback) {
-        (window as any).cancelIdleCallback(warmId);
-      } else {
-        clearTimeout(warmId as unknown as number);
-      }
       ro.disconnect();
       loopControlRef.current = null;
       sunGeo.dispose();
@@ -501,6 +526,23 @@ const SunViz: React.FC = () => {
     >
       {/* Three.js canvas mount point */}
       <div ref={mountRef} className="absolute inset-0" style={{ background: 'transparent' }} />
+
+      {renderError && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-dark-900 px-6">
+          <div className="max-w-md text-center">
+            <p className="mb-2 text-xs font-bold uppercase tracking-[0.28em] text-brand-500">Visualization offline</p>
+            <h2 className="mb-3 text-2xl font-extrabold text-white">Unable to render the solar scene</h2>
+            <p className="mb-5 text-sm text-gray-400">{renderError}</p>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="bg-brand-600 px-5 py-2 text-sm font-bold uppercase tracking-wider text-white hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-400"
+            >
+              Retry visualization
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Tight core halo — soft warm bloom directly over the sphere, no ring artifact */}
       <div

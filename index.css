@@ -62,6 +62,8 @@ nav[class*="fixed"] {
   }
 }
 
+/* ── Stellar ignition while the real globe initializes ──────────────────── */
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;

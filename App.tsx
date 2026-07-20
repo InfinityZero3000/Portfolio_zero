@@ -8,6 +8,7 @@ import clsx from 'clsx';
 import { scrollToSection, setupScrollObserver } from './utils/scroll-utils';
 import { ThemeContext, useTheme, type Theme } from './contexts/ThemeContext';
 import { cacheManager, DATA_CACHE_TTL } from './utils/cache-manager';
+import VisualizationErrorBoundary from './components/VisualizationErrorBoundary';
 
 // Lazy load components — only one WebGL viz is ever active at a time
 const GlobeViz  = lazy(() => import('./components/GlobeViz'));
@@ -207,6 +208,26 @@ const HomeSection: React.FC = memo(() => {
   const { lang } = useLang();
   const { theme } = useTheme();
   const t = getTranslations(lang);
+  const [visualizationPhase, setVisualizationPhase] = useState<'loading' | 'ready' | 'error'>('loading');
+
+  useEffect(() => {
+    setVisualizationPhase('loading');
+  }, [theme]);
+
+  const handleVisualizationReady = useCallback(() => {
+    setVisualizationPhase('ready');
+  }, []);
+
+  const handleVisualizationError = useCallback((_error?: Error) => {
+    setVisualizationPhase('error');
+  }, []);
+
+  const loaderLabel = lang === Language.VI ? 'Đang khởi tạo Trái Đất' : 'Initializing Earth';
+  const visualizationStatus = visualizationPhase === 'ready'
+    ? (lang === Language.VI ? 'Mô phỏng đã sẵn sàng' : 'Visualization ready')
+    : visualizationPhase === 'error'
+      ? (lang === Language.VI ? 'Không thể tải mô phỏng' : 'Visualization failed to load')
+      : loaderLabel;
 
   // Handler for when globe is fully zoomed out - scroll to next section
   const handleZoomOut = useCallback(() => {
@@ -215,12 +236,28 @@ const HomeSection: React.FC = memo(() => {
 
   return (
     <section id="home" className="relative w-full h-screen">
-      <Suspense fallback={null}>
-        {/* Only mount the active viz — never run two WebGL contexts simultaneously */}
-        <div style={{ position: 'absolute', inset: 0 }}>
-          {theme === 'dark' ? <GlobeViz onZoomOut={handleZoomOut} /> : <SunViz />}
-        </div>
-      </Suspense>
+      <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {visualizationStatus}
+      </span>
+      <VisualizationErrorBoundary key={theme} onError={handleVisualizationError}>
+        <Suspense fallback={null}>
+          {/* Only mount the active viz — never run two WebGL contexts simultaneously */}
+          <div className="absolute inset-0 h-screen">
+            {theme === 'dark' ? (
+              <GlobeViz
+                onZoomOut={handleZoomOut}
+                onGlobeReady={handleVisualizationReady}
+                onGlobeError={handleVisualizationError}
+              />
+            ) : (
+              <SunViz
+                onReady={handleVisualizationReady}
+                onError={handleVisualizationError}
+              />
+            )}
+          </div>
+        </Suspense>
+      </VisualizationErrorBoundary>
       <div
         className="absolute inset-0 pointer-events-none"
         style={{

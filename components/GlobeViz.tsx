@@ -8,25 +8,36 @@ import {
   optimizeScene
 } from '../utils/texture-optimizer';
 import { useTheme } from '../contexts/ThemeContext';
+import { createGlobeRevealGate } from '../utils/globe-reveal-gate';
 
 // Sun texture - NASA Solar Dynamics Observatory image (public domain)
 const SUN_TEXTURE_URL = 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b4/The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg/512px-The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg';
 
 interface GlobeVizProps {
   onGlobeReady?: () => void;
+  onGlobeError?: (error: Error) => void;
   onZoomOut?: () => void; // Callback when globe is zoomed out to max distance
 }
 
-const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
+const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onGlobeError, onZoomOut }) => {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const globeRef = useRef<any>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [isGlobeReady, setIsGlobeReady] = useState(false);
+  const [loadPhase, setLoadPhase] = useState<'loading' | 'revealing' | 'ready' | 'error'>('loading');
   const { theme } = useTheme();
   const themeRef = useRef(theme);
   const initialSizeRef = useRef<{ width: number; height: number } | null>(null);
   const [hasInitialSize, setHasInitialSize] = useState(false);
+  const onGlobeReadyRef = useRef(onGlobeReady);
+  const onGlobeErrorRef = useRef(onGlobeError);
+  const onZoomOutRef = useRef(onZoomOut);
+
+  useEffect(() => {
+    onGlobeReadyRef.current = onGlobeReady;
+    onGlobeErrorRef.current = onGlobeError;
+    onZoomOutRef.current = onZoomOut;
+  }, [onGlobeReady, onGlobeError, onZoomOut]);
 
   // Pause/resume control — shared across effects
   const pausedRef = useRef(false);            // true = animate loop should stop
@@ -90,8 +101,15 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
     }
 
     let mounted = true;
+    let teardownDone = false;
+    let interactionLocked = true;
+    let activeGlobe: any = null;
+    let activeControls: any = null;
     const cleanupTimeouts: number[] = [];
     const cleanupListeners: Array<() => void> = [];
+    const readinessFrames: number[] = [];
+    setLoadPhase('loading');
+    setLoadError(null);
 
     // Track atmosphere mesh for disposal on cleanup
     let atmosObjects: { mesh: THREE.Mesh; geo: THREE.SphereGeometry; mat: THREE.ShaderMaterial } | null = null;
@@ -100,6 +118,69 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
       const id = window.setTimeout(fn, delay);
       cleanupTimeouts.push(id);
       return id;
+    };
+
+    const cancelReadinessFrames = () => {
+      readinessFrames.splice(0).forEach((id) => cancelAnimationFrame(id));
+    };
+
+    const finishReveal = () => {
+      if (!mounted || !activeGlobe || !activeControls || !revealGate.finishReveal()) return;
+      activeGlobe.pointOfView({ lat: 16, lng: 106, altitude: 2.1 }, 0);
+      try { activeGlobe.pauseAnimation?.(); } catch (_) {}
+      animFnRef.current?.();
+      interactionLocked = false;
+      activeControls.enabled = true;
+      setLoadPhase('ready');
+      onGlobeReadyRef.current?.();
+    };
+
+    function startReveal() {
+      if (!mounted || !activeGlobe || !activeControls) return;
+      const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      setLoadPhase('revealing');
+      try { activeGlobe.resumeAnimation?.(); } catch (_) {}
+      // resumeAnimation may re-enable interaction; enforce the reveal lock afterward.
+      activeControls.enabled = false;
+      activeGlobe.pointOfView({ lat: 16, lng: 106, altitude: 2.1 }, reduceMotion ? 0 : 1600);
+      registerTimeout(finishReveal, reduceMotion ? 80 : 1600);
+    }
+
+    const revealGate = createGlobeRevealGate(startReveal);
+
+    const teardownAttempt = () => {
+      if (teardownDone) return;
+      teardownDone = true;
+      mounted = false;
+      interactionLocked = true;
+      cancelReadinessFrames();
+      cleanupTimeouts.splice(0).forEach((id) => clearTimeout(id));
+      cleanupListeners.splice(0).forEach((dispose) => dispose());
+      if (activeControls) activeControls.enabled = false;
+      if (animIdRef.current != null) {
+        cancelAnimationFrame(animIdRef.current);
+        animIdRef.current = null;
+      }
+      animFnRef.current = null;
+      if (atmosObjects) {
+        atmosObjects.geo.dispose();
+        atmosObjects.mat.dispose();
+        atmosObjects = null;
+      }
+      if (activeGlobe?._destructor) activeGlobe._destructor();
+      activeGlobe = null;
+      activeControls = null;
+      globeRef.current = null;
+      if (containerRef.current) containerRef.current.innerHTML = '';
+    };
+
+    const markError = (value: unknown) => {
+      if (!mounted || !revealGate.fail()) return;
+      const error = value instanceof Error ? value : new Error(String(value));
+      setLoadPhase('error');
+      setLoadError(error.message || 'Unknown error');
+      onGlobeErrorRef.current?.(error);
+      teardownAttempt();
     };
 
     const addCanvasListener = (
@@ -124,22 +205,30 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
           return;
         }
 
-        // Use event listener for async script loading
-        const onGlobeReady = () => {
-          window.removeEventListener('globeReady', onGlobeReady);
-          resolve((window as any).Globe);
+        let scriptSettled = false;
+        let timeoutId = 0;
+        const dispose = () => {
+          window.removeEventListener('globeReady', onScriptReady);
+          if (timeoutId) window.clearTimeout(timeoutId);
         };
-        window.addEventListener('globeReady', onGlobeReady);
+        const finish = (callback: () => void) => {
+          if (scriptSettled || !mounted) return;
+          scriptSettled = true;
+          dispose();
+          callback();
+        };
+        const onScriptReady = () => finish(() => {
+          const globeConstructor = (window as any).Globe;
+          if (globeConstructor) resolve(globeConstructor);
+          else reject(new Error('Globe CDN loaded without a constructor'));
+        });
 
-        // Fallback timeout (8 seconds)
-        setTimeout(() => {
-          window.removeEventListener('globeReady', onGlobeReady);
-          if ((window as any).Globe) {
-            resolve((window as any).Globe);
-          } else {
-            reject(new Error('Globe CDN timeout'));
-          }
-        }, 8000);
+        window.addEventListener('globeReady', onScriptReady);
+        cleanupListeners.push(dispose);
+        timeoutId = window.setTimeout(() => finish(() => {
+          if ((window as any).Globe) resolve((window as any).Globe);
+          else reject(new Error('Globe CDN timeout'));
+        }), 8000);
       });
 
       if (!Globe || !mounted || !containerRef.current) return;
@@ -160,13 +249,16 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
         throw new Error('Globe initialization failed');
       }
 
-      // Call the instance function with container and chain methods
-      const myGlobe = globeInstance(containerRef.current);
+      // Kapsule fires onGlobeReady during mount, so register before container binding.
+      const supportsReadyCallback = typeof globeInstance.onGlobeReady === 'function';
+      if (supportsReadyCallback) {
+        globeInstance.onGlobeReady(() => revealGate.signalReady());
+      }
 
       // CRITICAL: Configure renderer settings BEFORE any initialization
       // This ensures Globe.gl creates the WebGL context with proper alpha support
-      if (myGlobe.rendererConfig) {
-        myGlobe.rendererConfig({
+      if (globeInstance.rendererConfig) {
+        globeInstance.rendererConfig({
           alpha: true,
           premultipliedAlpha: false,
           antialias: true,
@@ -175,32 +267,37 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
       }
 
       // Set dimensions
-      myGlobe.width(initialSize.width);
-      myGlobe.height(initialSize.height);
+      globeInstance.width(initialSize.width);
+      globeInstance.height(initialSize.height);
 
       // Load background FIRST - independent of globe data
       try {
         if (textureURLs.background) {
-          myGlobe.backgroundImageUrl(textureURLs.background); // Show background stars immediately
+          globeInstance.backgroundImageUrl(textureURLs.background); // Show background stars immediately
         }
       } catch (e) {
-        console.warn('backgroundImageUrl failed:', e);
+        throw new Error(`Background texture setup failed: ${String(e)}`);
       }
 
       // Set textures with error handling - load globe texture
       try {
-        myGlobe.globeImageUrl(textureURLs.globe);
+        globeInstance.globeImageUrl(textureURLs.globe);
       } catch (e) {
-        console.warn('globeImageUrl failed:', e);
+        throw new Error(`Globe texture setup failed: ${String(e)}`);
       }
 
       // CRITICAL: Disable ALL built-in atmosphere/glow effects from Globe.gl
       try {
-        myGlobe.atmosphereColor('rgba(0,0,0,0)'); // Make atmosphere completely transparent
-        myGlobe.atmosphereAltitude(0); // Set atmosphere height to 0
+        globeInstance.atmosphereColor('rgba(0,0,0,0)'); // Make atmosphere completely transparent
+        globeInstance.atmosphereAltitude(0); // Set atmosphere height to 0
       } catch (e) {
         console.warn('Failed to disable atmosphere:', e);
       }
+
+      // Bind only after the requested scene and readiness callback are configured.
+      const myGlobe = globeInstance(containerRef.current);
+      activeGlobe = myGlobe;
+      myGlobe.pointOfView({ lat: 16, lng: 106, altitude: 1.35 }, 0);
 
       // CRITICAL: Get renderer and configure IMMEDIATELY with alpha support
       const renderer = myGlobe.renderer();
@@ -208,6 +305,23 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
       // Get WebGL context
       const canvas = renderer.domElement;
       const glContext = renderer.getContext();
+
+      if (!supportsReadyCallback) {
+        const firstFrame = requestAnimationFrame(() => {
+          const secondFrame = requestAnimationFrame(() => {
+            if (!mounted || revealGate.getState().settled) return;
+            const rect = canvas.getBoundingClientRect();
+            const isCurrentCanvas = canvas.isConnected
+              && containerRef.current?.contains(canvas)
+              && rect.width > 0
+              && rect.height > 0;
+            if (isCurrentCanvas) revealGate.signalReady();
+            else markError(new Error('Globe canvas failed readiness validation'));
+          });
+          readinessFrames.push(secondFrame);
+        });
+        readinessFrames.push(firstFrame);
+      }
 
       // CRITICAL: Do NOT use setClearColor - it causes black borders!
       // Instead, rely purely on CSS transparency and alpha-enabled WebGL context
@@ -311,11 +425,6 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
         }
       });
 
-      // Start at the final resting view so cold loads and hard refreshes are
-      // visually stable from the first painted frame.
-      myGlobe.pointOfView({ lat: 16, lng: 106, altitude: 2.1 }, 0);
-      setIsGlobeReady(true);
-
       // Add atmospheric glow layer after the globe is ready.
       registerTimeout(() => {
         if (myGlobe && mounted) {
@@ -361,7 +470,9 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
 
       // Render only when something changes; no idle animation loop.
       const controls = myGlobe.controls();
+      activeControls = controls;
       const camera = myGlobe.camera();
+      controls.enabled = false;
       controls.autoRotate = false;
       controls.enableDamping = false;
       controls.rotateSpeed = 0.6; // Smooth manual rotation
@@ -391,11 +502,13 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
       let isMouseOverCanvas = false;
       
       const onMouseEnter = () => {
+        if (interactionLocked) return;
         isMouseOverCanvas = true;
         controls.enableZoom = true; // Allow zoom when hovering over globe
       };
 
       const onMouseLeave = () => {
+        if (interactionLocked) return;
         isMouseOverCanvas = false;
         // Immediately disable zoom so wheel events pass through to page scroll
         registerTimeout(() => {
@@ -413,6 +526,7 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
 
       // Enhanced wheel handler to detect scroll at max zoom
       const handleWheelScroll = (e: WheelEvent) => {
+        if (interactionLocked) return;
         if (!myGlobe || !myGlobe.camera()) return;
         
         const camera = myGlobe.camera();
@@ -423,10 +537,10 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
         const isAtMaxZoom = distance >= maxDistance - 5;
         const isScrollingDown = e.deltaY > 0;
         
-        if (isAtMaxZoom && isScrollingDown && !hasTriggeredScroll && onZoomOut) {
+        if (isAtMaxZoom && isScrollingDown && !hasTriggeredScroll && onZoomOutRef.current) {
           hasTriggeredScroll = true;
           registerTimeout(() => {
-            if (onZoomOut) onZoomOut();
+            onZoomOutRef.current?.();
             registerTimeout(() => { hasTriggeredScroll = false; }, 2000);
           }, 100);
         }
@@ -484,15 +598,18 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
 
       // Detect user interaction for adaptive rendering
       const onInteractionStart = () => {
+        if (interactionLocked) return;
         scheduleRender();
       };
 
       const onInteractionEnd = () => {
+        if (interactionLocked) return;
         scheduleRender();
       };
 
       // Handle wheel events - allow scroll through when not zooming
       const onWheel = (e: WheelEvent) => {
+        if (interactionLocked) return;
         // If user is holding Ctrl/Cmd (zoom gesture), let Globe handle it
         if (e.ctrlKey || e.metaKey) {
           onInteractionStart();
@@ -526,45 +643,22 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
 
       scheduleRender();
 
-      // Notify consumers after the initial scene has had time to settle.
-      registerTimeout(() => {
-        if (onGlobeReady && mounted) {
-          onGlobeReady();
-        }
-      }, 1400); // Slightly after zoom animation (1200ms + 200ms buffer)
+      // Consume a possibly synchronous ready signal only after fatal setup completes.
+      revealGate.completeInitialization();
 
       // CSS transparency is sufficient - no need for delayed setClearColor
     };
 
     loadGlobe().catch((err: any) => {
       console.error('Failed to load Globe:', err);
-      setLoadError(err.message || 'Unknown error');
+      markError(err);
     });
 
     return () => {
-      mounted = false;
-      cleanupTimeouts.forEach(id => clearTimeout(id));
-      cleanupListeners.forEach(dispose => dispose());
-      if (animIdRef.current != null) {
-        cancelAnimationFrame(animIdRef.current);
-        animIdRef.current = null;
-      }
-      animFnRef.current = null;
-      // Dispose atmosphere GPU resources
-      if (atmosObjects) {
-        atmosObjects.geo.dispose();
-        atmosObjects.mat.dispose();
-        atmosObjects = null;
-      }
-      if (globeRef.current?._destructor) {
-        globeRef.current._destructor();
-      }
-      globeRef.current = null;
-      if (containerRef.current) {
-        containerRef.current.innerHTML = '';
-      }
+      revealGate.fail();
+      teardownAttempt();
     };
-  }, [hasInitialSize, textureURLs, deviceCapability, rendererSettings, onGlobeReady, onZoomOut]);
+  }, [hasInitialSize, textureURLs, deviceCapability, rendererSettings]);
 
   // ── Pause / resume control ─────────────────────────────────────────────────
   // Globe renders only when: theme === 'dark' AND home section is visible.
@@ -618,7 +712,7 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
 
   if (loadError) {
     return (
-      <div className="w-full h-full flex items-center justify-center bg-dark-900">
+      <div className="absolute inset-0 z-20 flex h-full w-full items-center justify-center bg-dark-900">
         <div className="text-center">
           <p className="text-red-500 text-xl mb-2">Failed to load 3D Globe</p>
           <p className="text-gray-400 text-sm mb-4">{loadError}</p>
@@ -634,25 +728,21 @@ const GlobeViz: React.FC<GlobeVizProps> = ({ onGlobeReady, onZoomOut }) => {
   }
 
   return (
-    <div
-      ref={containerRef}
-      className="w-full h-full absolute inset-0 z-0"
-      style={{
-        overflow: 'hidden',
-        backfaceVisibility: 'hidden',
-        background: 'transparent',
-        backgroundColor: 'transparent',
-        opacity: isGlobeReady ? 1 : 0,
-        // scale() is a transform function, not a CSS filter function — keep them separate
-        filter: isGlobeReady ? 'none' : 'blur(6px)',
-        transform: isGlobeReady ? 'translateZ(0)' : 'translateZ(0) scale(0.985)',
-        // Drop willChange once the globe is stable to avoid a permanent compositing layer
-        willChange: isGlobeReady ? 'auto' : 'transform',
-        transition: 'opacity 1.2s ease, filter 1.4s ease, transform 1.4s ease',
-        pointerEvents: 'auto',
-      }}
-
-    />
+    <div className="absolute inset-0 h-full w-full overflow-hidden">
+      <div
+        ref={containerRef}
+        className="absolute inset-0 z-0 h-full w-full"
+        style={{
+          backfaceVisibility: 'hidden',
+          background: 'transparent',
+          backgroundColor: 'transparent',
+          opacity: loadPhase === 'revealing' || loadPhase === 'ready' ? 1 : 0,
+          transform: 'translateZ(0)',
+          transition: 'opacity 320ms ease',
+          pointerEvents: loadPhase === 'ready' ? 'auto' : 'none',
+        }}
+      />
+    </div>
   );
 };
 
